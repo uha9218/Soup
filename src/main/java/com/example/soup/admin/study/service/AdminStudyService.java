@@ -1,5 +1,7 @@
 package com.example.soup.admin.study.service;
 
+import java.util.List;
+
 import com.example.soup.admin.study.dto.AdminStudyRequestDTO;
 import com.example.soup.admin.study.dto.AdminStudyResponseDTO;
 import com.example.soup.admin.study.dto.AdminStudyDeleteResponseDTO;
@@ -56,6 +58,21 @@ public class AdminStudyService {
 			study.getIsCompleted(),
 			study.getCreatedAt()
 		);
+	}
+
+	@Transactional(readOnly = true)
+	public List<AdminStudyResponseDTO> getAllStudies() {
+		List<Study> studies = studyRepository.findAll();
+		return studies.stream()
+			.map(study -> AdminStudyResponseDTO.of(
+				study.getName(),
+				study.getDescription(),
+				study.getType(),
+				study.getPeriod(),
+				study.getIsCompleted(),
+				study.getCreatedAt()
+			))
+			.toList();
 	}
 
 	@Transactional(readOnly = true)

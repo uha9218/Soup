@@ -1,6 +1,8 @@
 package com.example.soup.admin.study.controller;
 
 
+import java.util.List;
+
 import com.example.soup.admin.study.dto.AdminStudyRequestDTO;
 import com.example.soup.admin.study.dto.AdminStudyResponseDTO;
 import com.example.soup.admin.study.dto.AdminStudyDeleteResponseDTO;
@@ -23,6 +25,10 @@ public class AdminStudyController {
 	public ResponseEntity<AdminStudyResponseDTO> createStudy(
 		@RequestBody AdminStudyRequestDTO.Create request) {
 		return ResponseEntity.ok(studyService.createStudy(request));
+	}
+	@GetMapping
+	public ResponseEntity<List<AdminStudyResponseDTO>> getAllStudies() {
+		return ResponseEntity.ok(studyService.getAllStudies());
 	}
 
 	@GetMapping("/{id}")

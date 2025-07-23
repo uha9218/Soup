@@ -13,10 +13,12 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.*;
 
 class AdminStudyServiceUnitTest {
@@ -63,6 +65,25 @@ class AdminStudyServiceUnitTest {
 			verify(studyRepository, times(1)).save(any(Study.class));
 		}
 	}
+
+	@Test
+	@DisplayName("스터디 전체 조회 - 유닛 테스트 성공")
+	void getAllStudies_unit_success() {
+		// given
+		Study study1 = Study.create("스터디1", "설명1", "온라인", "3개월");
+		Study study2 = Study.create("스터디2", "설명2", "오프라인", "2개월");
+
+		given(studyRepository.findAll()).willReturn(List.of(study1, study2));
+
+		// when
+		List<AdminStudyResponseDTO> result = studyService.getAllStudies();
+
+		// then
+		assertThat(result).hasSize(2);
+		assertThat(result.get(0).getName()).isEqualTo("스터디1");
+		assertThat(result.get(1).getType()).isEqualTo("오프라인");
+	}
+
 
 	@Nested
 	@DisplayName("getStudy() 테스트")

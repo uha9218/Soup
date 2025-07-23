@@ -13,6 +13,9 @@ import org.springframework.http.ResponseEntity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 class AdminStudyControllerUnitTest {
 
 	private AdminStudyService studyService;
@@ -67,6 +70,27 @@ class AdminStudyControllerUnitTest {
 
 		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
 		assertThat(response.getBody()).isEqualTo(mockResponse);
+	}
+
+	@Test
+	@DisplayName("스터디 전체 조회 - 유닛 테스트 성공")
+	void getAllStudies_unit_success() {
+		// given
+		List<AdminStudyResponseDTO> mockList = List.of(
+			AdminStudyResponseDTO.of("스터디1", "설명1", "온라인", "3개월", false, LocalDateTime.now()),
+			AdminStudyResponseDTO.of("스터디2", "설명2", "오프라인", "2개월", true, LocalDateTime.now())
+		);
+
+		when(studyService.getAllStudies()).thenReturn(mockList);
+
+		// when
+		ResponseEntity<List<AdminStudyResponseDTO>> response = controller.getAllStudies();
+
+		// then
+		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+		assertThat(response.getBody()).hasSize(2);
+		assertThat(response.getBody().get(0).getName()).isEqualTo("스터디1");
+		assertThat(response.getBody().get(1).getType()).isEqualTo("오프라인");
 	}
 
 	@Test
