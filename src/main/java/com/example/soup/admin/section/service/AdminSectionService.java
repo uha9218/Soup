@@ -1,5 +1,7 @@
 package com.example.soup.admin.section.service;
 
+import java.util.List;
+
 import com.example.soup.admin.section.dto.AdminSectionRequestDTO;
 import com.example.soup.admin.section.dto.AdminSectionResponseDTO;
 import com.example.soup.admin.section.dto.AdminSectionDeleteResponseDTO;
@@ -38,6 +40,18 @@ public class AdminSectionService {
 			saved.getStudy().getId()
 		);
 	}
+
+	@Transactional(readOnly = true)
+	public List<AdminSectionResponseDTO> getAllSections() {
+		return sectionRepository.findAll().stream()
+			.map(section -> AdminSectionResponseDTO.of(
+				section.getSectionNumber(),
+				section.getSectionName(),
+				section.getStudy().getId()
+			))
+			.toList();
+	}
+
 
 	@Transactional(readOnly = true)
 	public AdminSectionResponseDTO getSection(Long id) {

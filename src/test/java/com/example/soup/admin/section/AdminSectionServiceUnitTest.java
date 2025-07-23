@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -51,6 +52,25 @@ class AdminSectionServiceUnitTest {
 		assertThat(response).isNotNull();
 		assertThat(response.getSectionNumber()).isEqualTo(1L);
 		assertThat(response.getSectionName()).isEqualTo("섹션1");
+	}
+	@Test
+	@DisplayName("전체 섹션 조회 - 서비스 유닛 테스트 성공")
+	void getAllSections_success() {
+		// given
+		Study dummyStudy = Study.create("테스트 스터디", "설명", "온라인", "4개월");
+
+		Section section1 = Section.create(1L, "섹션 1", dummyStudy);
+		Section section2 = Section.create(2L, "섹션 2", dummyStudy);
+
+		when(sectionRepository.findAll()).thenReturn(List.of(section1, section2));
+
+		// when
+		List<AdminSectionResponseDTO> result = sectionService.getAllSections();
+
+		// then
+		assertThat(result).hasSize(2);
+		assertThat(result.get(0).getSectionName()).isEqualTo("섹션 1");
+		assertThat(result.get(1).getSectionNumber()).isEqualTo(2L);
 	}
 
 	@Test

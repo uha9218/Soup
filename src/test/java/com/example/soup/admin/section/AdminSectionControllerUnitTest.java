@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+import java.util.List;
+
 class AdminSectionControllerUnitTest {
 
 	private AdminSectionService sectionService;
@@ -41,6 +43,27 @@ class AdminSectionControllerUnitTest {
 
 		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
 		assertThat(response.getBody()).isEqualTo(mockResponse);
+	}
+
+	@Test
+	@DisplayName("전체 섹션 조회 - 유닛 테스트 성공")
+	void getAllSections_unit_success() {
+		// given
+		List<AdminSectionResponseDTO> mockList = List.of(
+			AdminSectionResponseDTO.of(1L, "섹션 1", 100L),
+			AdminSectionResponseDTO.of(2L, "섹션 2", 100L)
+		);
+
+		when(sectionService.getAllSections()).thenReturn(mockList);
+
+		// when
+		ResponseEntity<List<AdminSectionResponseDTO>> response = controller.getAllSections();
+
+		// then
+		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+		assertThat(response.getBody()).hasSize(2);
+		assertThat(response.getBody()).extracting("sectionName")
+			.containsExactly("섹션 1", "섹션 2");
 	}
 
 	@Test

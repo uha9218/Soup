@@ -1,5 +1,7 @@
 package com.example.soup.admin.section.controller;
 
+import java.util.List;
+
 import com.example.soup.admin.section.dto.AdminSectionRequestDTO;
 import com.example.soup.admin.section.dto.AdminSectionResponseDTO;
 import com.example.soup.admin.section.dto.AdminSectionDeleteResponseDTO;
@@ -21,6 +23,12 @@ public class AdminSectionController {
 		@RequestBody AdminSectionRequestDTO request) {
 		return ResponseEntity.ok(sectionService.createSection(request));
 	}
+
+	@GetMapping
+	public ResponseEntity<List<AdminSectionResponseDTO>> getAllSections() {
+		return ResponseEntity.ok(sectionService.getAllSections());
+	}
+
 
 	@GetMapping("/{id}")
 	public ResponseEntity<AdminSectionResponseDTO> getSection(@PathVariable Long id) {
