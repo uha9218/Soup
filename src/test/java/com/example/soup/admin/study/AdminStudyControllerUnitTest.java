@@ -1,18 +1,28 @@
 package com.example.soup.admin.study;
 
 import com.example.soup.admin.study.controller.AdminStudyController;
+import com.example.soup.admin.study.dto.AdminStudyDeleteResponseDTO;
 import com.example.soup.admin.study.dto.AdminStudyRequestDTO;
 import com.example.soup.admin.study.dto.AdminStudyResponseDTO;
-import com.example.soup.admin.study.dto.AdminStudyDeleteResponseDTO;
+import com.example.soup.admin.study.service.AdminStudyService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
 
 class AdminStudyControllerUnitTest {
 
-	private final AdminStudyController controller = new AdminStudyController();
+	private AdminStudyService studyService;
+	private AdminStudyController controller;
+
+	@BeforeEach
+	void setUp() {
+		studyService = mock(AdminStudyService.class);
+		controller = new AdminStudyController(studyService);
+	}
 
 	@Test
 	@DisplayName("스터디 생성 - 유닛 테스트 성공")
@@ -24,16 +34,16 @@ class AdminStudyControllerUnitTest {
 			.period("4 months")
 			.build();
 
+		AdminStudyResponseDTO mockResponse = AdminStudyResponseDTO.of(
+			"Spring Study", "Spring Boot Mastery", "온라인", "4 months", false, null
+		);
+
+		when(studyService.createStudy(request)).thenReturn(mockResponse);
+
 		ResponseEntity<AdminStudyResponseDTO> response = controller.createStudy(request);
 
 		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-		AdminStudyResponseDTO body = response.getBody();
-		assertThat(body).isNotNull();
-		assertThat(body.getName()).isEqualTo("Spring Study");
-		assertThat(body.getDescription()).isEqualTo("Spring Boot Mastery");
-		assertThat(body.getType()).isEqualTo("온라인");
-		assertThat(body.getPeriod()).isEqualTo("4 months");
-		assertThat(body.getIsCompleted()).isFalse();
+		assertThat(response.getBody()).isEqualTo(mockResponse);
 	}
 
 	@Test
@@ -47,36 +57,43 @@ class AdminStudyControllerUnitTest {
 			.isCompleted(true)
 			.build();
 
-		ResponseEntity<AdminStudyResponseDTO> response = controller.updateStudy(request);
+		AdminStudyResponseDTO mockResponse = AdminStudyResponseDTO.of(
+			"Updated Study", "Updated Description", "오프라인", "2 months", true, null
+		);
+
+		when(studyService.updateStudy(eq(1L), eq(request))).thenReturn(mockResponse);
+
+		ResponseEntity<AdminStudyResponseDTO> response = controller.updateStudy(1L, request);
 
 		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-		AdminStudyResponseDTO body = response.getBody();
-		assertThat(body).isNotNull();
-		assertThat(body.getName()).isEqualTo("Updated Study");
-		assertThat(body.getIsCompleted()).isTrue();
+		assertThat(response.getBody()).isEqualTo(mockResponse);
 	}
 
 	@Test
 	@DisplayName("스터디 조회 - 유닛 테스트 성공")
 	void getStudy_unit_success() {
-		ResponseEntity<AdminStudyResponseDTO> response = controller.getStudy();
+		AdminStudyResponseDTO mockResponse = AdminStudyResponseDTO.of(
+			"Dummy Study", "설명", "온라인", "4개월", false, null
+		);
+
+		when(studyService.getStudy(1L)).thenReturn(mockResponse);
+
+		ResponseEntity<AdminStudyResponseDTO> response = controller.getStudy(1L);
 
 		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-		AdminStudyResponseDTO body = response.getBody();
-		assertThat(body).isNotNull();
-		assertThat(body.getName()).isEqualTo("Dummy Study");
+		assertThat(response.getBody()).isEqualTo(mockResponse);
 	}
 
 	@Test
 	@DisplayName("스터디 삭제 - 유닛 테스트 성공")
 	void deleteStudy_unit_success() {
-		String name = "Spring Study";
+		AdminStudyDeleteResponseDTO mockResponse = AdminStudyDeleteResponseDTO.of("Spring Study");
 
-		ResponseEntity<AdminStudyDeleteResponseDTO> response = controller.deleteStudy(name);
+		when(studyService.deleteStudy(1L)).thenReturn(mockResponse);
+
+		ResponseEntity<AdminStudyDeleteResponseDTO> response = controller.deleteStudy(1L);
 
 		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-		AdminStudyDeleteResponseDTO body = response.getBody();
-		assertThat(body).isNotNull();
-		assertThat(body.getName()).isEqualTo(name);
+		assertThat(response.getBody()).isEqualTo(mockResponse);
 	}
 }

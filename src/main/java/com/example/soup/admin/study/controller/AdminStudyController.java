@@ -4,58 +4,41 @@ package com.example.soup.admin.study.controller;
 import com.example.soup.admin.study.dto.AdminStudyRequestDTO;
 import com.example.soup.admin.study.dto.AdminStudyResponseDTO;
 import com.example.soup.admin.study.dto.AdminStudyDeleteResponseDTO;
+import com.example.soup.admin.study.service.AdminStudyService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+
 @RestController
-@RequestMapping("/admin/study")
+@RequestMapping("/api/admin/studies")
 @RequiredArgsConstructor
 public class AdminStudyController {
 
+	private final AdminStudyService studyService;
+
 	@PostMapping
-	public ResponseEntity<AdminStudyResponseDTO> createStudy(@Valid @RequestBody AdminStudyRequestDTO.Create request) {
-		AdminStudyResponseDTO response = AdminStudyResponseDTO.of(
-			request.getName(),
-			request.getDescription(),
-			request.getType(),
-			request.getPeriod(),
-			false,
-			null
-		);
-		return ResponseEntity.ok(response);
+	public ResponseEntity<AdminStudyResponseDTO> createStudy(
+		@RequestBody AdminStudyRequestDTO.Create request) {
+		return ResponseEntity.ok(studyService.createStudy(request));
 	}
 
-	@PutMapping
-	public ResponseEntity<AdminStudyResponseDTO> updateStudy(@Valid @RequestBody AdminStudyRequestDTO.Update request) {
-		AdminStudyResponseDTO response = AdminStudyResponseDTO.of(
-			request.getName(),
-			request.getDescription(),
-			request.getType(),
-			request.getPeriod(),
-			request.getIsCompleted(),
-			null
-		);
-		return ResponseEntity.ok(response);
+	@GetMapping("/{id}")
+	public ResponseEntity<AdminStudyResponseDTO> getStudy(@PathVariable Long id) {
+		return ResponseEntity.ok(studyService.getStudy(id));
 	}
 
-	@GetMapping
-	public ResponseEntity<AdminStudyResponseDTO> getStudy() {
-		AdminStudyResponseDTO response = AdminStudyResponseDTO.of(
-			"Dummy Study",
-			"This is a dummy description",
-			"Online",
-			"3 months",
-			true,
-			null
-		);
-		return ResponseEntity.ok(response);
+	@PutMapping("/{id}")
+	public ResponseEntity<AdminStudyResponseDTO> updateStudy(
+		@PathVariable Long id,
+		@RequestBody AdminStudyRequestDTO.Update request) {
+		return ResponseEntity.ok(studyService.updateStudy(id, request));
 	}
 
-	@DeleteMapping
-	public ResponseEntity<AdminStudyDeleteResponseDTO> deleteStudy(@RequestParam String name) {
-		AdminStudyDeleteResponseDTO response = AdminStudyDeleteResponseDTO.of(name);
-		return ResponseEntity.ok(response);
+	@DeleteMapping("/{id}")
+	public ResponseEntity<AdminStudyDeleteResponseDTO> deleteStudy(@PathVariable Long id) {
+		return ResponseEntity.ok(studyService.deleteStudy(id));
 	}
 }
