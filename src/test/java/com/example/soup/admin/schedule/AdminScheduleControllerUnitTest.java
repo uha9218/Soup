@@ -57,7 +57,28 @@ class AdminScheduleControllerUnitTest {
 		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
 		assertThat(response.getBody()).isEqualTo(mockResponse);
 	}
+	@Test
+	@DisplayName("스케줄 전체 조회 - 유닛 테스트 성공")
+	void getAllSchedules_success() {
+		List<AdminScheduleResponseDTO> mockList = List.of(
+			AdminScheduleResponseDTO.of(
+				"스케줄1", "온라인", 1L,
+				List.of(1L, 2L), "https://zoom.us/1", LocalDateTime.of(2025, 8, 1, 19, 0)
+			),
+			AdminScheduleResponseDTO.of(
+				"스케줄2", "오프라인", 2L,
+				List.of(3L), "https://meet.google.com/abc", LocalDateTime.of(2025, 8, 2, 20, 0)
+			)
+		);
+		when(scheduleService.getAllSchedules()).thenReturn(mockList);
 
+		ResponseEntity<List<AdminScheduleResponseDTO>> response = controller.getAllSchedules();
+
+		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+		assertThat(response.getBody()).hasSize(2);
+		assertThat(response.getBody().get(0).getTitle()).isEqualTo("스케줄1");
+		assertThat(response.getBody().get(1).getMeetingLink()).contains("google");
+	}
 	@Test
 	@DisplayName("스케줄 조회 성공")
 	void getSchedule_success() {

@@ -63,6 +63,29 @@ class AdminScheduleServiceUnitTest {
 		assertThat(response.getSectionIds()).containsExactly(1L, 2L);
 		verify(scheduleRepository).save(any(Schedule.class));
 	}
+	@Test
+	@DisplayName("전체 스케줄 조회 - 유닛 테스트 성공")
+	void getAllSchedules_success() {
+		// given
+		Schedule s1 = Schedule.create(
+			"스터디1 일정", "온라인", 1L,
+			List.of(1L, 2L), "https://zoom.us/1", LocalDateTime.of(2025, 8, 1, 19, 0)
+		);
+		Schedule s2 = Schedule.create(
+			"스터디2 일정", "오프라인", 2L,
+			List.of(3L), "https://meet.google.com/abc", LocalDateTime.of(2025, 8, 2, 20, 0)
+		);
+		when(scheduleRepository.findAll()).thenReturn(List.of(s1, s2));
+
+		// when
+		List<AdminScheduleResponseDTO> result = scheduleService.getAllSchedules();
+
+		// then
+		assertThat(result).hasSize(2);
+		assertThat(result.get(0).getTitle()).isEqualTo("스터디1 일정");
+		assertThat(result.get(1).getMeetingLink()).contains("google");
+		assertThat(result.get(0).getSectionIds()).containsExactly(1L, 2L);
+	}
 
 	@Test
 	@DisplayName("스케줄 조회 실패 - 존재하지 않음")

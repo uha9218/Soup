@@ -1,5 +1,7 @@
 package com.example.soup.admin.schedule.controller;
 
+import java.util.List;
+
 import com.example.soup.admin.schedule.dto.AdminScheduleRequestDTO;
 import com.example.soup.admin.schedule.dto.AdminScheduleResponseDTO;
 import com.example.soup.admin.schedule.dto.AdminScheduleDeleteResponseDTO;
@@ -21,7 +23,11 @@ public class AdminScheduleController {
 		@RequestBody AdminScheduleRequestDTO request) {
 		return ResponseEntity.ok(scheduleService.createSchedule(request));
 	}
-
+	@GetMapping
+	public ResponseEntity<List<AdminScheduleResponseDTO>> getAllSchedules() {
+		List<AdminScheduleResponseDTO> schedules = scheduleService.getAllSchedules();
+		return ResponseEntity.ok(schedules);
+	}
 	@GetMapping("/{id}")
 	public ResponseEntity<AdminScheduleResponseDTO> getSchedule(@PathVariable Long id) {
 		return ResponseEntity.ok(scheduleService.getSchedule(id));

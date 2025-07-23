@@ -1,5 +1,7 @@
 package com.example.soup.admin.schedule.service;
 
+import java.util.List;
+
 import com.example.soup.admin.schedule.dto.AdminScheduleRequestDTO;
 import com.example.soup.admin.schedule.dto.AdminScheduleResponseDTO;
 import com.example.soup.admin.schedule.dto.AdminScheduleDeleteResponseDTO;
@@ -37,6 +39,21 @@ public class AdminScheduleService {
 			saved.getMeetingLink(),
 			saved.getScheduleDateTime()
 		);
+	}
+	@Transactional(readOnly = true)
+	public List<AdminScheduleResponseDTO> getAllSchedules() {
+		List<Schedule> schedules = scheduleRepository.findAll();
+
+		return schedules.stream()
+			.map(schedule -> AdminScheduleResponseDTO.of(
+				schedule.getTitle(),
+				schedule.getType(),
+				schedule.getStudyId(),
+				schedule.getSectionIds(),
+				schedule.getMeetingLink(),
+				schedule.getScheduleDateTime()
+			))
+			.toList();
 	}
 
 	@Transactional(readOnly = true)
