@@ -1,78 +1,87 @@
-package com.example.soup.admin.section;
+package com.example.soup.admin.section.controller;
 
-import com.example.soup.admin.section.controller.AdminSectionController;
+import com.example.soup.admin.section.dto.AdminSectionDeleteResponseDTO;
 import com.example.soup.admin.section.dto.AdminSectionRequestDTO;
 import com.example.soup.admin.section.dto.AdminSectionResponseDTO;
-import com.example.soup.admin.section.dto.AdminSectionDeleteResponseDTO;
+import com.example.soup.admin.section.service.AdminSectionService;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
 
 class AdminSectionControllerUnitTest {
 
-	private final AdminSectionController controller = new AdminSectionController();
+	private AdminSectionService sectionService;
+	private AdminSectionController controller;
+
+	@BeforeEach
+	void setUp() {
+		sectionService = mock(AdminSectionService.class);
+		controller = new AdminSectionController(sectionService);
+	}
 
 	@Test
 	@DisplayName("섹션 생성 - 유닛 테스트 성공")
-	void createSection_unit_success() {
+	void createSection_success() {
 		AdminSectionRequestDTO request = AdminSectionRequestDTO.builder()
 			.sectionNumber(1L)
-			.sectionName("섹션1")
-			.studyId(100L)
+			.sectionName("섹션 A")
+			.studyId(10L)
 			.build();
+
+		AdminSectionResponseDTO mockResponse = AdminSectionResponseDTO.of(1L, "섹션 A", 10L);
+
+		when(sectionService.createSection(request)).thenReturn(mockResponse);
 
 		ResponseEntity<AdminSectionResponseDTO> response = controller.createSection(request);
 
 		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-		AdminSectionResponseDTO body = response.getBody();
-		assertThat(body).isNotNull();
-		assertThat(body.getSectionNumber()).isEqualTo(1L);
-		assertThat(body.getSectionName()).isEqualTo("섹션1");
-	}
-
-	@Test
-	@DisplayName("섹션 수정 - 유닛 테스트 성공")
-	void updateSection_unit_success() {
-		AdminSectionRequestDTO request = AdminSectionRequestDTO.builder()
-			.sectionNumber(1L)
-			.sectionName("수정된 섹션")
-			.studyId(100L)
-			.build();
-
-		ResponseEntity<AdminSectionResponseDTO> response = controller.updateSection(request);
-
-		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-		AdminSectionResponseDTO body = response.getBody();
-		assertThat(body).isNotNull();
-		assertThat(body.getSectionName()).isEqualTo("수정된 섹션");
+		assertThat(response.getBody()).isEqualTo(mockResponse);
 	}
 
 	@Test
 	@DisplayName("섹션 조회 - 유닛 테스트 성공")
-	void getSection_unit_success() {
-		ResponseEntity<AdminSectionResponseDTO> response = controller.getSection();
+	void getSection_success() {
+		AdminSectionResponseDTO mockResponse = AdminSectionResponseDTO.of(1L, "섹션 A", 10L);
 
-		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-		AdminSectionResponseDTO body = response.getBody();
-		assertThat(body).isNotNull();
-		assertThat(body.getSectionNumber()).isEqualTo(1L);
-		assertThat(body.getSectionName()).isEqualTo("섹션 이름");
+		when(sectionService.getSection(1L)).thenReturn(mockResponse);
+
+		ResponseEntity<AdminSectionResponseDTO> response = controller.getSection(1L);
+
+		assertThat(response.getBody()).isEqualTo(mockResponse);
+	}
+
+	@Test
+	@DisplayName("섹션 수정 - 유닛 테스트 성공")
+	void updateSection_success() {
+		AdminSectionRequestDTO request = AdminSectionRequestDTO.builder()
+			.sectionNumber(2L)
+			.sectionName("수정된 섹션")
+			.studyId(10L)
+			.build();
+
+		AdminSectionResponseDTO mockResponse = AdminSectionResponseDTO.of(2L, "수정된 섹션", 10L);
+
+		when(sectionService.updateSection(1L, request)).thenReturn(mockResponse);
+
+		ResponseEntity<AdminSectionResponseDTO> response = controller.updateSection(1L, request);
+
+		assertThat(response.getBody()).isEqualTo(mockResponse);
 	}
 
 	@Test
 	@DisplayName("섹션 삭제 - 유닛 테스트 성공")
-	void deleteSection_unit_success() {
-		Long sectionNumber = 1L;
-		String sectionName = "섹션1";
+	void deleteSection_success() {
+		AdminSectionDeleteResponseDTO mockResponse = AdminSectionDeleteResponseDTO.of(1L, "삭제 섹션");
 
-		ResponseEntity<AdminSectionDeleteResponseDTO> response = controller.deleteSection(sectionNumber, sectionName);
+		when(sectionService.deleteSection(1L)).thenReturn(mockResponse);
 
-		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-		AdminSectionDeleteResponseDTO body = response.getBody();
-		assertThat(body).isNotNull();
-		assertThat(body.getSectionNumber()).isEqualTo(sectionNumber);
-		assertThat(body.getSectionName()).isEqualTo(sectionName);
+		ResponseEntity<AdminSectionDeleteResponseDTO> response = controller.deleteSection(1L);
+
+		assertThat(response.getBody()).isEqualTo(mockResponse);
 	}
 }

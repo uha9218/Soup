@@ -3,52 +3,39 @@ package com.example.soup.admin.section.controller;
 import com.example.soup.admin.section.dto.AdminSectionRequestDTO;
 import com.example.soup.admin.section.dto.AdminSectionResponseDTO;
 import com.example.soup.admin.section.dto.AdminSectionDeleteResponseDTO;
-import jakarta.validation.Valid;
+import com.example.soup.admin.section.service.AdminSectionService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/admin/section")
+@RequestMapping("/api/admin/sections")
 @RequiredArgsConstructor
 public class AdminSectionController {
 
+	private final AdminSectionService sectionService;
+
 	@PostMapping
-	public ResponseEntity<AdminSectionResponseDTO> createSection(@Valid @RequestBody AdminSectionRequestDTO request) {
-		AdminSectionResponseDTO response = AdminSectionResponseDTO.of(
-			request.getSectionNumber(),
-			request.getSectionName(),
-			request.getStudyId()
-		);
-		return ResponseEntity.ok(response);
+	public ResponseEntity<AdminSectionResponseDTO> createSection(
+		@RequestBody AdminSectionRequestDTO request) {
+		return ResponseEntity.ok(sectionService.createSection(request));
 	}
 
-	@PutMapping
-	public ResponseEntity<AdminSectionResponseDTO> updateSection(@Valid @RequestBody AdminSectionRequestDTO request) {
-		AdminSectionResponseDTO response = AdminSectionResponseDTO.of(
-			request.getSectionNumber(),
-			request.getSectionName(),
-			request.getStudyId()
-		);
-		return ResponseEntity.ok(response);
+	@GetMapping("/{id}")
+	public ResponseEntity<AdminSectionResponseDTO> getSection(@PathVariable Long id) {
+		return ResponseEntity.ok(sectionService.getSection(id));
 	}
 
-	@GetMapping
-	public ResponseEntity<AdminSectionResponseDTO> getSection() {
-		AdminSectionResponseDTO response = AdminSectionResponseDTO.of(
-			1L,
-			"섹션 이름",
-			100L
-		);
-		return ResponseEntity.ok(response);
+	@PutMapping("/{id}")
+	public ResponseEntity<AdminSectionResponseDTO> updateSection(
+		@PathVariable Long id,
+		@RequestBody AdminSectionRequestDTO request) {
+		return ResponseEntity.ok(sectionService.updateSection(id, request));
 	}
 
-	@DeleteMapping
-	public ResponseEntity<AdminSectionDeleteResponseDTO> deleteSection(@RequestParam Long sectionNumber, @RequestParam String sectionName) {
-		AdminSectionDeleteResponseDTO response = AdminSectionDeleteResponseDTO.of(
-			sectionNumber,
-			sectionName
-		);
-		return ResponseEntity.ok(response);
+	@DeleteMapping("/{id}")
+	public ResponseEntity<AdminSectionDeleteResponseDTO> deleteSection(@PathVariable Long id) {
+		return ResponseEntity.ok(sectionService.deleteSection(id));
 	}
 }
