@@ -20,7 +20,7 @@ public class AdminSectionController {
 
 	@PostMapping
 	public ResponseEntity<AdminSectionResponseDTO> createSection(
-		@RequestBody AdminSectionRequestDTO request) {
+		@RequestBody AdminSectionRequestDTO.Create request) {
 		return ResponseEntity.ok(sectionService.createSection(request));
 	}
 
@@ -38,7 +38,7 @@ public class AdminSectionController {
 	@PutMapping("/{id}")
 	public ResponseEntity<AdminSectionResponseDTO> updateSection(
 		@PathVariable Long id,
-		@RequestBody AdminSectionRequestDTO request) {
+		@RequestBody AdminSectionRequestDTO.Update request) {
 		return ResponseEntity.ok(sectionService.updateSection(id, request));
 	}
 

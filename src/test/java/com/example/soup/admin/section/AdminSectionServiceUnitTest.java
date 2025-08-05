@@ -36,7 +36,7 @@ class AdminSectionServiceUnitTest {
 	@Test
 	@DisplayName("섹션 생성 성공")
 	void createSection_success() {
-		AdminSectionRequestDTO request = AdminSectionRequestDTO.builder()
+		AdminSectionRequestDTO.Create request = AdminSectionRequestDTO.Create.builder()
 			.sectionNumber(1L)
 			.sectionName("섹션1")
 			.studyId(100L)
@@ -104,10 +104,9 @@ class AdminSectionServiceUnitTest {
 		);
 		Section section = Section.create(1L, "초기 섹션", study);
 
-		AdminSectionRequestDTO request = AdminSectionRequestDTO.builder()
+		AdminSectionRequestDTO.Update request = AdminSectionRequestDTO.Update.builder()
 			.sectionNumber(2L)
 			.sectionName("수정된 섹션")
-			.studyId(100L)
 			.build();
 
 		when(sectionRepository.findById(1L)).thenReturn(Optional.of(section));
