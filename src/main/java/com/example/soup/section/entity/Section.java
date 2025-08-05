@@ -21,11 +21,8 @@ public class Section {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-
 	private Long sectionNumber;
-
 	private String sectionName;
-
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "study_id")
 	private Study study;

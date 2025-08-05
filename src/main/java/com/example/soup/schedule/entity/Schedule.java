@@ -7,53 +7,43 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+
+import com.example.soup.section.entity.Section;
+import com.example.soup.study.entity.Study;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Schedule {
-
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	private String title;
-	private String type;
-	private Long studyId;
-	private String meetingLink;
-	private LocalDateTime scheduleDateTime;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "study_id", nullable = false)
+	private Study study;
+
+	@Column(nullable = false)
+	private String name;         // 일정명
+
+	private String description;  // 일정 상세 설명
+
+	@Temporal(TemporalType.TIMESTAMP)
+	@Column(name = "schedule_date", nullable = false)
+	private Date scheduleDate;   // 일정 날짜
+	@Column(name = "meeting_location")
+	private String meetingLocation;   // 미팅 장소 혹은 온라인 미팅 링크
+
+	@Column(name = "created_at", nullable = false, updatable = false)
+	private LocalDateTime createdAt;
+	@Column(name = "updated_at")
+	private LocalDateTime updatedAt;
 
 	@ElementCollection
-	@CollectionTable(name = "schedule_section", joinColumns = @JoinColumn(name = "schedule_id"))
+	@CollectionTable(name = "schedule_sections", joinColumns = @JoinColumn(name = "schedule_id"))
 	@Column(name = "section_id")
 	private List<Long> sectionIds = new ArrayList<>();
 
-	private Schedule(
-		String title,
-		String type,
-		Long studyId,
-		List<Long> sectionIds,
-		String meetingLink,
-		LocalDateTime scheduleDateTime
-	) {
-		this.title = title;
-		this.type = type;
-		this.studyId = studyId;
-		this.sectionIds = sectionIds;
-		this.meetingLink = meetingLink;
-		this.scheduleDateTime = scheduleDateTime;
-	}
-
-	public static Schedule create(String title, String type, Long studyId, List<Long> sectionIds, String meetingLink, LocalDateTime scheduleDateTime) {
-		return new Schedule(title, type, studyId, sectionIds, meetingLink, scheduleDateTime);
-	}
-
-	public void update(String title, String type, List<Long> sectionIds, String meetingLink, LocalDateTime scheduleDateTime) {
-		this.title = title;
-		this.type = type;
-		this.sectionIds = sectionIds;
-		this.meetingLink = meetingLink;
-		this.scheduleDateTime = scheduleDateTime;
-	}
 }
