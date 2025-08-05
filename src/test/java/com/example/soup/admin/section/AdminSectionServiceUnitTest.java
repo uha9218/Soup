@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,7 +42,12 @@ class AdminSectionServiceUnitTest {
 			.studyId(100L)
 			.build();
 
-		Study dummyStudy = Study.create("스터디", "설명", "온라인", "4개월");
+		// Study 엔티티 팩토리 메서드에 맞춰서 생성 (LocalDateTime)
+		Study dummyStudy = Study.create(
+			"스터디", "설명", "온라인",
+			LocalDateTime.of(2025, 8, 1, 0, 0),
+			LocalDateTime.of(2025, 12, 31, 23, 59)
+		);
 		Section dummySection = Section.create(1L, "섹션1", dummyStudy);
 
 		when(studyRepository.findById(100L)).thenReturn(Optional.of(dummyStudy));
@@ -53,11 +59,16 @@ class AdminSectionServiceUnitTest {
 		assertThat(response.getSectionNumber()).isEqualTo(1L);
 		assertThat(response.getSectionName()).isEqualTo("섹션1");
 	}
+
 	@Test
 	@DisplayName("전체 섹션 조회 - 서비스 유닛 테스트 성공")
 	void getAllSections_success() {
 		// given
-		Study dummyStudy = Study.create("테스트 스터디", "설명", "온라인", "4개월");
+		Study dummyStudy = Study.create(
+			"테스트 스터디", "설명", "온라인",
+			LocalDateTime.of(2025, 8, 1, 0, 0),
+			LocalDateTime.of(2025, 12, 31, 23, 59)
+		);
 
 		Section section1 = Section.create(1L, "섹션 1", dummyStudy);
 		Section section2 = Section.create(2L, "섹션 2", dummyStudy);
@@ -86,7 +97,11 @@ class AdminSectionServiceUnitTest {
 	@Test
 	@DisplayName("섹션 수정 성공")
 	void updateSection_success() {
-		Study study = Study.create("스터디", "설명", "온라인", "4개월");
+		Study study = Study.create(
+			"스터디", "설명", "온라인",
+			LocalDateTime.of(2025, 8, 1, 0, 0),
+			LocalDateTime.of(2025, 12, 31, 23, 59)
+		);
 		Section section = Section.create(1L, "초기 섹션", study);
 
 		AdminSectionRequestDTO request = AdminSectionRequestDTO.builder()
@@ -106,7 +121,11 @@ class AdminSectionServiceUnitTest {
 	@Test
 	@DisplayName("섹션 삭제 성공")
 	void deleteSection_success() {
-		Study study = Study.create("스터디", "설명", "온라인", "4개월");
+		Study study = Study.create(
+			"스터디", "설명", "온라인",
+			LocalDateTime.of(2025, 8, 1, 0, 0),
+			LocalDateTime.of(2025, 12, 31, 23, 59)
+		);
 		Section section = Section.create(1L, "삭제 섹션", study);
 
 		when(sectionRepository.findById(1L)).thenReturn(Optional.of(section));
@@ -117,4 +136,3 @@ class AdminSectionServiceUnitTest {
 		verify(sectionRepository, times(1)).delete(section);
 	}
 }
-
