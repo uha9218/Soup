@@ -3,6 +3,7 @@ package com.example.soup.admin.study.dto;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
@@ -10,27 +11,51 @@ public class AdminStudyResponseDTO {
 	private final String name;
 	private final String description;
 	private final String type;
-	private final String period;
-	private final Boolean isCompleted;
+
+	private final LocalDateTime startDate;
+	private final LocalDateTime endDate;
+	private final LocalDateTime actualEndDate;
+
+	private final Boolean completed;
 	private final LocalDateTime createdAt;
 
 	@Builder
-	public AdminStudyResponseDTO(String name, String description, String type, String period, Boolean isCompleted, LocalDateTime createdAt) {
+	public AdminStudyResponseDTO(
+		String name,
+		String description,
+		String type,
+		LocalDateTime startDate,
+		LocalDateTime endDate,
+		LocalDateTime actualEndDate,
+		Boolean completed,
+		LocalDateTime createdAt) {
 		this.name = name;
 		this.description = description;
 		this.type = type;
-		this.period = period;
-		this.isCompleted = isCompleted;
+		this.startDate = startDate;
+		this.endDate = endDate;
+		this.actualEndDate = actualEndDate;
+		this.completed = completed;
 		this.createdAt = createdAt;
 	}
 
-	public static AdminStudyResponseDTO of(String name, String description, String type, String period, Boolean isCompleted, LocalDateTime createdAt) {
+	public static AdminStudyResponseDTO of(
+		String name,
+		String description,
+		String type,
+		LocalDateTime startDate,
+		LocalDateTime endDate,
+		LocalDateTime actualEndDate,
+		Boolean completed,
+		LocalDateTime createdAt) {
 		return AdminStudyResponseDTO.builder()
 			.name(name)
 			.description(description)
 			.type(type)
-			.period(period)
-			.isCompleted(isCompleted)
+			.startDate(startDate)
+			.endDate(endDate)
+			.actualEndDate(actualEndDate)
+			.completed(completed)
 			.createdAt(createdAt)
 			.build();
 	}

@@ -11,7 +11,6 @@ import com.example.soup.study.repository.StudyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 @Service
 @RequiredArgsConstructor
 public class AdminStudyService {
@@ -24,15 +23,20 @@ public class AdminStudyService {
 			request.getName(),
 			request.getDescription(),
 			request.getType(),
-			request.getPeriod()
+			request.getStartDate(),
+			request.getEndDate()
 		);
+
 		Study saved = studyRepository.save(study);
+
 		return AdminStudyResponseDTO.of(
 			saved.getName(),
 			saved.getDescription(),
 			saved.getType(),
-			saved.getPeriod(),
-			saved.getIsCompleted(),
+			saved.getStartDate(),
+			saved.getEndDate(),
+			saved.getActualEndDate(),
+			saved.getCompleted(),
 			saved.getCreatedAt()
 		);
 	}
@@ -46,16 +50,22 @@ public class AdminStudyService {
 			request.getName(),
 			request.getDescription(),
 			request.getType(),
-			request.getPeriod(),
-			request.getIsCompleted()
+			request.getStartDate(),
+			request.getEndDate(),
+			request.getCompleted()
 		);
+
+		// actualEndDate setter 필요
+		study.setActualEndDate(request.getActualEndDate());
 
 		return AdminStudyResponseDTO.of(
 			study.getName(),
 			study.getDescription(),
 			study.getType(),
-			study.getPeriod(),
-			study.getIsCompleted(),
+			study.getStartDate(),
+			study.getEndDate(),
+			study.getActualEndDate(),
+			study.getCompleted(),
 			study.getCreatedAt()
 		);
 	}
@@ -68,8 +78,10 @@ public class AdminStudyService {
 				study.getName(),
 				study.getDescription(),
 				study.getType(),
-				study.getPeriod(),
-				study.getIsCompleted(),
+				study.getStartDate(),
+				study.getEndDate(),
+				study.getActualEndDate(),
+				study.getCompleted(),
 				study.getCreatedAt()
 			))
 			.toList();
@@ -84,8 +96,10 @@ public class AdminStudyService {
 			study.getName(),
 			study.getDescription(),
 			study.getType(),
-			study.getPeriod(),
-			study.getIsCompleted(),
+			study.getStartDate(),
+			study.getEndDate(),
+			study.getActualEndDate(),
+			study.getCompleted(),
 			study.getCreatedAt()
 		);
 	}
