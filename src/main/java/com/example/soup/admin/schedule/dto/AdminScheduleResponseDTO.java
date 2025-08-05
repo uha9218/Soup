@@ -9,31 +9,60 @@ import lombok.Getter;
 @Getter
 public class AdminScheduleResponseDTO {
 
-	private final String title;
-	private final String type;
+	private final Long id;
 	private final Long studyId;
+	private final String name;
+	private final String description;
+	private final LocalDateTime scheduleDate;
+	private final String meetingLocation;
 	private final List<Long> sectionIds;
-	private final String meetingLink;
-	private final LocalDateTime scheduleDateTime;
+	private final LocalDateTime createdAt;
+	private final LocalDateTime updatedAt;
 
 	@Builder
-	public AdminScheduleResponseDTO(String title, String type, Long studyId, List<Long> sectionIds, String meetingLink, LocalDateTime scheduleDateTime) {
-		this.title = title;
-		this.type = type;
+	public AdminScheduleResponseDTO(
+		Long id,
+		Long studyId,
+		String name,
+		String description,
+		LocalDateTime scheduleDate,
+		String meetingLocation,
+		List<Long> sectionIds,
+		LocalDateTime createdAt,
+		LocalDateTime updatedAt
+	) {
+		this.id = id;
 		this.studyId = studyId;
+		this.name = name;
+		this.description = description;
+		this.scheduleDate = scheduleDate;
+		this.meetingLocation = meetingLocation;
 		this.sectionIds = sectionIds;
-		this.meetingLink = meetingLink;
-		this.scheduleDateTime = scheduleDateTime;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
 	}
 
-	public static AdminScheduleResponseDTO of(String title, String type, Long studyId, List<Long> sectionIds, String meetingLink, LocalDateTime scheduleDateTime) {
+	public static AdminScheduleResponseDTO of(
+		Long id,
+		Long studyId,
+		String name,
+		String description,
+		LocalDateTime scheduleDate,
+		String meetingLocation,
+		List<Long> sectionIds,
+		LocalDateTime createdAt,
+		LocalDateTime updatedAt
+	) {
 		return AdminScheduleResponseDTO.builder()
-			.title(title)
-			.type(type)
+			.id(id)
 			.studyId(studyId)
+			.name(name)
+			.description(description)
+			.scheduleDate(scheduleDate)
+			.meetingLocation(meetingLocation)
 			.sectionIds(sectionIds)
-			.meetingLink(meetingLink)
-			.scheduleDateTime(scheduleDateTime)
+			.createdAt(createdAt)
+			.updatedAt(updatedAt)
 			.build();
 	}
 }

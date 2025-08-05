@@ -32,7 +32,7 @@ public class Schedule {
 
 	@Temporal(TemporalType.TIMESTAMP)
 	@Column(name = "schedule_date", nullable = false)
-	private Date scheduleDate;   // 일정 날짜
+	private LocalDateTime scheduleDate;   // 일정 날짜
 	@Column(name = "meeting_location")
 	private String meetingLocation;   // 미팅 장소 혹은 온라인 미팅 링크
 
@@ -41,9 +41,47 @@ public class Schedule {
 	@Column(name = "updated_at")
 	private LocalDateTime updatedAt;
 
-	@ElementCollection
-	@CollectionTable(name = "schedule_sections", joinColumns = @JoinColumn(name = "schedule_id"))
-	@Column(name = "section_id")
-	private List<Long> sectionIds = new ArrayList<>();
+	@OneToMany(mappedBy = "schedule")
+	private List<Section> sections = new ArrayList<>();
+
+	public static Schedule create(
+		Study study,
+		String name,
+		String description,
+		LocalDateTime scheduleDate,
+		String meetingLocation,
+		List<Section> sections
+	) {
+		Schedule schedule = new Schedule();
+		schedule.study = study;
+		schedule.name = name;
+		schedule.description = description;
+		schedule.scheduleDate = scheduleDate;
+		schedule.meetingLocation = meetingLocation;
+		schedule.createdAt = LocalDateTime.now();
+		if (sections != null) {
+			schedule.sections.addAll(sections);
+		}
+		return schedule;
+	}
+	public void update(
+		String name,
+		String description,
+		LocalDateTime scheduleDate,
+		String meetingLocation,
+		List<Section> sections
+	) {
+		this.name = name;
+		this.description = description;
+		this.scheduleDate = scheduleDate;
+		this.meetingLocation = meetingLocation;
+		this.updatedAt = LocalDateTime.now();
+
+		// 연관 Section 변경 처리
+		if (sections != null) {
+			this.sections.clear();
+			this.sections.addAll(sections);
+		}
+	}
 
 }
