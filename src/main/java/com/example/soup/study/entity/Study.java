@@ -1,14 +1,12 @@
 package com.example.soup.study.entity;
 
-import java.time.LocalDateTime;
-
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -19,33 +17,48 @@ public class Study {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	private String name;
-	private String description;
-	private String type;
-	private String period;
+	private String name;        // 스터디 제목
+	private String description; // 스터디 설명
+	private String type;        // 스터디 유형(책 혹은 강의 등)
 
-	private Boolean isCompleted;
-	private LocalDateTime createdAt;
+	private LocalDateTime startDate; // 스터디 시작 날짜
+	private LocalDateTime endDate;   // 스터디 예상 종료 날짜
+	private LocalDateTime actualEndDate;	//스터디 실제 종료 날짜
 
-	// 생성 팩토리
-	public static Study create(String name, String description, String type, String period) {
+	private Boolean completed;  // 스터디 완료 여부
+
+	private LocalDateTime createdAt;  // 생성 시각
+	private LocalDateTime updatedAt;  // 수정 시각
+
+	// 생성 팩토리 (startDate, endDate 추가)
+	public static Study create(String name, String description, String type,
+		LocalDateTime startDate, LocalDateTime endDate) {
 		Study study = new Study();
 		study.name = name;
 		study.description = description;
 		study.type = type;
-		study.period = period;
-		study.isCompleted = false;
+		study.startDate = startDate;
+		study.endDate = endDate;
+		study.completed = false;
 		study.createdAt = LocalDateTime.now();
 		return study;
 	}
 
-	// 업데이트 로직
-	public void update(String name, String description, String type, String period, Boolean isCompleted) {
+	// 업데이트 로직 (startDate, endDate, completed 추가)
+	public void update(String name, String description, String type,
+		LocalDateTime startDate, LocalDateTime endDate, Boolean completed) {
 		this.name = name;
 		this.description = description;
 		this.type = type;
-		this.period = period;
-		this.isCompleted = isCompleted;
+		this.startDate = startDate;
+		this.endDate = endDate;
+		this.completed = completed;
+		this.updatedAt = LocalDateTime.now();
 	}
-}
 
+	public void setActualEndDate(LocalDateTime actualEndDate) {
+		this.actualEndDate = actualEndDate;
+		this.updatedAt = LocalDateTime.now(); // 수정 시각도 함께 갱신
+	}
+
+}

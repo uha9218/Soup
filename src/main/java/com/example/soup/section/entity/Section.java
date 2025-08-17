@@ -21,23 +21,18 @@ public class Section {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-
 	private Long sectionNumber;
-
 	private String sectionName;
-
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "study_id")
 	private Study study;
 
-	private Section(Long sectionNumber, String sectionName, Study study) {
-		this.sectionNumber = sectionNumber;
-		this.sectionName = sectionName;
-		this.study = study;
-	}
-
 	public static Section create(Long sectionNumber, String sectionName, Study study) {
-		return new Section(sectionNumber, sectionName, study);
+		Section section = new Section();
+		section.sectionNumber = sectionNumber;
+		section.sectionName = sectionName;
+		section.study = study;
+		return section;
 	}
 
 	public void update(Long sectionNumber, String sectionName) {

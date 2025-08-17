@@ -20,7 +20,7 @@ public class AdminScheduleController {
 
 	@PostMapping
 	public ResponseEntity<AdminScheduleResponseDTO> createSchedule(
-		@RequestBody AdminScheduleRequestDTO request) {
+		@RequestBody AdminScheduleRequestDTO.Create  request) {
 		return ResponseEntity.ok(scheduleService.createSchedule(request));
 	}
 	@GetMapping
@@ -36,7 +36,7 @@ public class AdminScheduleController {
 	@PutMapping("/{id}")
 	public ResponseEntity<AdminScheduleResponseDTO> updateSchedule(
 		@PathVariable Long id,
-		@RequestBody AdminScheduleRequestDTO request) {
+		@RequestBody AdminScheduleRequestDTO.Update request) {
 		return ResponseEntity.ok(scheduleService.updateSchedule(id, request));
 	}
 
