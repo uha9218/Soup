@@ -135,7 +135,8 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { scheduleApi } from '../services/scheduleApi.js';
 
 // Type definitions
 interface CalendarDate {
@@ -174,26 +175,9 @@ const nextSchedule = ref({
 const currentDate = ref(new Date());
 const selectedDate = ref<string | null>(null);
 
-const monthSchedules = ref<Schedule[]>([
-  {
-    id: 'sch-1',
-    date: '2025-08-16',
-    title: '스프링 MVC 1편 온라인 미팅',
-    time: '20:00'
-  },
-  {
-    id: 'sch-2',
-    date: '2025-08-20',
-    title: '스터디 회고 세션',
-    time: '15:00'
-  },
-  {
-    id: 'sch-3',
-    date: '2025-08-25',
-    title: 'JPA 스터디',
-    time: '19:00'
-  }
-]);
+const monthSchedules = ref<Schedule[]>([]);
+const isLoading = ref(false);
+const error = ref<string | null>(null);
 
 const currentYear = computed(() => currentDate.value.getFullYear());
 const currentMonth = computed(() => currentDate.value.getMonth() + 1);
