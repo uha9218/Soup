@@ -44,11 +44,11 @@ class ScheduleCalendarServiceUnitTest {
 
         Schedule schedule1 = Schedule.create(
                 study, "스프링 MVC 1편 온라인 미팅", "설명1",
-                LocalDateTime.of(2025, 8, 16, 20, 0), "https://zoom.us/example1", List.of(section)
+                LocalDateTime.of(2025, 8, 16, 20, 0), "https://zoom.us/example1", true, List.of(section)
         );
         Schedule schedule2 = Schedule.create(
                 study, "스터디 회고 세션", "설명2",
-                LocalDateTime.of(2025, 8, 20, 15, 0), "https://zoom.us/example2", List.of(section)
+                LocalDateTime.of(2025, 8, 20, 15, 0), "https://zoom.us/example2", false, List.of(section)
         );
 
         when(scheduleRepository.findByScheduleDateBetweenOrderByScheduleDate(
@@ -112,9 +112,9 @@ class ScheduleCalendarServiceUnitTest {
         Section section = mock(Section.class);
 
         List<Schedule> schedules = Arrays.asList(
-                Schedule.create(study, "일정1", "설명1", LocalDateTime.of(2025, 8, 1, 10, 0), "장소1", List.of(section)),
-                Schedule.create(study, "일정2", "설명2", LocalDateTime.of(2025, 8, 15, 14, 0), "장소2", List.of(section)),
-                Schedule.create(study, "일정3", "설명3", LocalDateTime.of(2025, 8, 31, 20, 0), "장소3", List.of(section))
+                Schedule.create(study, "일정1", "설명1", LocalDateTime.of(2025, 8, 1, 10, 0), "장소1", true, List.of(section)),
+                Schedule.create(study, "일정2", "설명2", LocalDateTime.of(2025, 8, 15, 14, 0), "장소2", false, List.of(section)),
+                Schedule.create(study, "일정3", "설명3", LocalDateTime.of(2025, 8, 31, 20, 0), "장소3", true, List.of(section))
         );
 
         when(scheduleRepository.findByScheduleDateBetweenOrderByScheduleDate(

@@ -77,7 +77,23 @@
         <!-- Study Progress Overview -->
         <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-medium mb-4">학습 진행 현황</h3>
-          <div class="space-y-3">
+          
+          <!-- 로딩 상태 -->
+          <div v-if="studyProgressLoading" class="text-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="text-gray-500 mt-2">학습 진행 현황을 불러오는 중...</p>
+          </div>
+          
+          <!-- 에러 상태 -->
+          <div v-else-if="studyProgressError" class="text-center py-8">
+            <p class="text-red-500 mb-2">{{ studyProgressError }}</p>
+            <button @click="loadStudyProgress" class="text-blue-600 hover:text-blue-800">
+              다시 시도
+            </button>
+          </div>
+          
+          <!-- 데이터 표시 -->
+          <div v-else class="space-y-3">
             <div v-for="section in sections" :key="section.id"
               @click="selectSection(section)"
               :class="[
@@ -93,6 +109,11 @@
                 ]"></i>
               </div>
             </div>
+            
+            <!-- 데이터가 없는 경우 -->
+            <div v-if="sections.length === 0" class="text-center py-8 text-gray-500">
+              학습 진행 현황이 없습니다.
+            </div>
           </div>
         </div>
 
@@ -101,7 +122,23 @@
           <h3 class="text-lg font-medium mb-4">
             팀원 진행 상황 - {{ selectedSection ? `섹션 ${selectedSection.title}` : '' }}
           </h3>
-          <div v-if="memberProgress.length" class="overflow-x-auto">
+          
+          <!-- 로딩 상태 -->
+          <div v-if="studyProgressLoading" class="text-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="text-gray-500 mt-2">팀원 진행 상황을 불러오는 중...</p>
+          </div>
+          
+          <!-- 에러 상태 -->
+          <div v-else-if="studyProgressError" class="text-center py-8">
+            <p class="text-red-500 mb-2">{{ studyProgressError }}</p>
+            <button @click="loadStudyProgress" class="text-blue-600 hover:text-blue-800">
+              다시 시도
+            </button>
+          </div>
+          
+          <!-- 데이터 표시 -->
+          <div v-else-if="memberProgress.length" class="overflow-x-auto">
             <table class="w-full">
               <thead>
                 <tr class="border-b">
@@ -137,6 +174,7 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue';
 import { scheduleApi } from '../services/scheduleApi.js';
+import { studyProgressApi } from '../services/studyProgressApi.js';
 
 // Type definitions
 interface CalendarDate {
@@ -165,6 +203,38 @@ interface MemberProgress {
   id: number;
   name: string;
   progress: string[];
+}
+
+// API 응답 타입 정의
+interface StudyProgressResponse {
+  studyName: string;
+  schedules: ScheduleProgress[];
+}
+
+interface ScheduleProgress {
+  scheduleId: number;
+  scheduleName: string;
+  scheduleDate: string;
+  scheduleTime: string;
+  description: string;
+  meetingLocation: string;
+  hasDeepStudy: boolean;
+  sections: SectionProgress[];
+}
+
+interface SectionProgress {
+  sectionId: number;
+  sectionName: string;
+  sectionNumber: number;
+  needsReview: boolean;
+  members: MemberProgressDetail[];
+}
+
+interface MemberProgressDetail {
+  userId: number;
+  userName: string;
+  reviewSubmitted: boolean;
+  deepStudySubmitted: boolean;
 }
 
 const nextSchedule = ref({
@@ -233,20 +303,18 @@ const calendarDates = computed((): CalendarDate[] => {
   return dates;
 });
 
-const sections = ref<Section[]>([
-  { id: 1, title: '2-4', isCompleted: true },
-  { id: 2, title: '5-7', isCompleted: false },
-  { id: 3, title: '8-9', isCompleted: false }
-]);
+// 학습 진행 현황 관련 상태
+const studyProgress = ref<StudyProgressResponse | null>(null);
+const studyProgressLoading = ref(false);
+const studyProgressError = ref<string | null>(null);
 
-const selectedSection = ref<Section | null>(sections.value[0]);
+const sections = ref<Section[]>([]);
+const selectedSection = ref<Section | null>(null);
+const progressColumns = ref<string[]>([]);
+const memberProgress = ref<MemberProgress[]>([]);
 
-const progressColumns = ref(['섹션 2 회고', '섹션 3 회고', '섹션 4 회고', '심화학습']);
-
-const memberProgress = ref<MemberProgress[]>([
-  { id: 1, name: '팀원 A', progress: ['o', 'o', 'o', 'x'] },
-  { id: 2, name: '팀원 B', progress: ['o', 'o', 'x', 'o'] }
-]);
+// 현재 진행 중인 스터디 ID (자동으로 조회됨)
+const currentStudyId = ref(null);
 
 const scheduleListTitle = computed(() => {
   return selectedDate.value ? `${formatDate(selectedDate.value)} 일정` : '이번 달 전체 일정';
@@ -301,9 +369,130 @@ function goToSchedule(scheduleId: string) {
   console.log(`Navigate to /schedules/${scheduleId}`);
 }
 
+// 학습 진행 현황 API 호출
+async function loadStudyProgress() {
+  try {
+    studyProgressLoading.value = true;
+    studyProgressError.value = null;
+    
+    // 현재 진행 중인 스터디의 진행 현황 조회
+    const response = await studyProgressApi.getCurrentStudyProgress();
+    studyProgress.value = response;
+    
+    // 데이터 변환
+    transformStudyProgressData();
+  } catch (error) {
+    console.error('학습 진행 현황 로드 실패:', error);
+    
+    // 현재 진행 중인 스터디가 없는 경우
+    if (error.status === 404 && error.data?.message?.includes('현재 진행 중인 스터디가 없습니다')) {
+      studyProgressError.value = '현재 진행 중인 스터디가 없습니다.';
+    } else {
+      studyProgressError.value = '학습 진행 현황을 불러오는데 실패했습니다.';
+    }
+  } finally {
+    studyProgressLoading.value = false;
+  }
+}
+
+// API 데이터를 UI 데이터로 변환
+function transformStudyProgressData() {
+  if (!studyProgress.value) return;
+  
+  // 스케줄을 섹션으로 변환
+  const newSections: Section[] = studyProgress.value.schedules.map(schedule => ({
+    id: schedule.scheduleId,
+    title: schedule.scheduleName,
+    isCompleted: schedule.sections.some(section => 
+      section.members.some(member => member.reviewSubmitted)
+    )
+  }));
+  
+  sections.value = newSections;
+  
+  // 첫 번째 섹션을 기본 선택
+  if (newSections.length > 0 && !selectedSection.value) {
+    selectedSection.value = newSections[0];
+  }
+  
+  // 선택된 섹션의 진행 상황 업데이트
+  updateMemberProgress();
+}
+
+// 선택된 섹션의 팀원 진행 상황 업데이트
+function updateMemberProgress() {
+  if (!selectedSection.value || !studyProgress.value) return;
+  
+  const selectedSchedule = studyProgress.value.schedules.find(
+    schedule => schedule.scheduleId === selectedSection.value!.id
+  );
+  
+  if (!selectedSchedule) return;
+  
+  // 컬럼 헤더 생성
+  const columns: string[] = [];
+  selectedSchedule.sections.forEach(section => {
+    if (section.needsReview) {
+      columns.push(`섹션 ${section.sectionNumber} 회고`);
+    }
+  });
+  
+  // 심화학습 컬럼 추가
+  if (selectedSchedule.hasDeepStudy) {
+    columns.push('심화학습');
+  }
+  
+  progressColumns.value = columns;
+  
+  // 팀원별 진행 상황 생성
+  const memberMap = new Map<number, { name: string; progress: string[] }>();
+  
+  selectedSchedule.sections.forEach(section => {
+    section.members.forEach(member => {
+      if (!memberMap.has(member.userId)) {
+        memberMap.set(member.userId, {
+          name: member.userName,
+          progress: new Array(columns.length).fill('x')
+        });
+      }
+      
+      const memberData = memberMap.get(member.userId)!;
+      
+      // 회고 제출 상태
+      if (section.needsReview) {
+        const reviewIndex = selectedSchedule.sections
+          .filter(s => s.needsReview)
+          .findIndex(s => s.sectionId === section.sectionId);
+        if (reviewIndex !== -1) {
+          memberData.progress[reviewIndex] = member.reviewSubmitted ? 'o' : 'x';
+        }
+      }
+      
+      // 심화학습 제출 상태
+      if (selectedSchedule.hasDeepStudy) {
+        const deepStudyIndex = columns.length - 1;
+        memberData.progress[deepStudyIndex] = member.deepStudySubmitted ? 'o' : 'x';
+      }
+    });
+  });
+  
+  // Map을 배열로 변환
+  memberProgress.value = Array.from(memberMap.entries()).map(([id, data]) => ({
+    id,
+    name: data.name,
+    progress: data.progress
+  }));
+}
+
 function selectSection(section: Section) {
   selectedSection.value = section;
+  updateMemberProgress();
 }
+
+// 컴포넌트 마운트 시 데이터 로드
+onMounted(async () => {
+  await loadStudyProgress();
+});
 </script>
 
 <style scoped>

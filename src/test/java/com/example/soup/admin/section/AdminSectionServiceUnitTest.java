@@ -48,7 +48,7 @@ class AdminSectionServiceUnitTest {
 			LocalDateTime.of(2025, 8, 1, 0, 0),
 			LocalDateTime.of(2025, 12, 31, 23, 59)
 		);
-		Section dummySection = Section.create(1L, "섹션1", dummyStudy);
+		Section dummySection = Section.create(1L, "섹션1", dummyStudy, null, true);
 
 		when(studyRepository.findById(100L)).thenReturn(Optional.of(dummyStudy));
 		when(sectionRepository.save(any(Section.class))).thenReturn(dummySection);
@@ -70,8 +70,8 @@ class AdminSectionServiceUnitTest {
 			LocalDateTime.of(2025, 12, 31, 23, 59)
 		);
 
-		Section section1 = Section.create(1L, "섹션 1", dummyStudy);
-		Section section2 = Section.create(2L, "섹션 2", dummyStudy);
+		Section section1 = Section.create(1L, "섹션 1", dummyStudy, null, true);
+		Section section2 = Section.create(2L, "섹션 2", dummyStudy, null, false);
 
 		when(sectionRepository.findAll()).thenReturn(List.of(section1, section2));
 
@@ -102,7 +102,7 @@ class AdminSectionServiceUnitTest {
 			LocalDateTime.of(2025, 8, 1, 0, 0),
 			LocalDateTime.of(2025, 12, 31, 23, 59)
 		);
-		Section section = Section.create(1L, "초기 섹션", study);
+		Section section = Section.create(1L, "초기 섹션", study, null, true);
 
 		AdminSectionRequestDTO.Update request = AdminSectionRequestDTO.Update.builder()
 			.sectionNumber(2L)
@@ -125,7 +125,7 @@ class AdminSectionServiceUnitTest {
 			LocalDateTime.of(2025, 8, 1, 0, 0),
 			LocalDateTime.of(2025, 12, 31, 23, 59)
 		);
-		Section section = Section.create(1L, "삭제 섹션", study);
+		Section section = Section.create(1L, "삭제 섹션", study, null, true);
 
 		when(sectionRepository.findById(1L)).thenReturn(Optional.of(section));
 

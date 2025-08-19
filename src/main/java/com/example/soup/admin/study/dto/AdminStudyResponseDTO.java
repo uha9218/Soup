@@ -17,6 +17,7 @@ public class AdminStudyResponseDTO {
 	private final LocalDateTime actualEndDate;
 
 	private final Boolean completed;
+	private final Boolean isActive;
 	private final LocalDateTime createdAt;
 
 	@Builder
@@ -28,6 +29,7 @@ public class AdminStudyResponseDTO {
 		LocalDateTime endDate,
 		LocalDateTime actualEndDate,
 		Boolean completed,
+		Boolean isActive,
 		LocalDateTime createdAt) {
 		this.name = name;
 		this.description = description;
@@ -36,6 +38,7 @@ public class AdminStudyResponseDTO {
 		this.endDate = endDate;
 		this.actualEndDate = actualEndDate;
 		this.completed = completed;
+		this.isActive = isActive;
 		this.createdAt = createdAt;
 	}
 
@@ -47,6 +50,7 @@ public class AdminStudyResponseDTO {
 		LocalDateTime endDate,
 		LocalDateTime actualEndDate,
 		Boolean completed,
+		Boolean isActive,
 		LocalDateTime createdAt) {
 		return AdminStudyResponseDTO.builder()
 			.name(name)
@@ -56,6 +60,7 @@ public class AdminStudyResponseDTO {
 			.endDate(endDate)
 			.actualEndDate(actualEndDate)
 			.completed(completed)
+			.isActive(isActive)
 			.createdAt(createdAt)
 			.build();
 	}

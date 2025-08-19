@@ -62,7 +62,7 @@ class ScheduleCalendarServiceIntegrationTest {
         testStudy = studyRepository.save(testStudy);
 
         // 테스트용 Section 생성
-        testSection = Section.create(1L, "테스트 섹션", testStudy);
+        		testSection = Section.create(1L, "테스트 섹션", testStudy, null, true);
         testSection = sectionRepository.save(testSection);
     }
 
@@ -78,11 +78,11 @@ class ScheduleCalendarServiceIntegrationTest {
         // 테스트 데이터 생성
         Schedule schedule1 = Schedule.create(
                 testStudy, "스프링 MVC 1편 온라인 미팅", "설명1",
-                LocalDateTime.of(2025, 8, 16, 20, 0), "https://zoom.us/example1", List.of(testSection)
+                LocalDateTime.of(2025, 8, 16, 20, 0), "https://zoom.us/example1", true, List.of(testSection)
         );
         Schedule schedule2 = Schedule.create(
                 testStudy, "스터디 회고 세션", "설명2",
-                LocalDateTime.of(2025, 8, 20, 15, 0), "https://zoom.us/example2", List.of(testSection)
+                LocalDateTime.of(2025, 8, 20, 15, 0), "https://zoom.us/example2", false, List.of(testSection)
         );
 
         scheduleRepository.save(schedule1);
@@ -113,7 +113,7 @@ class ScheduleCalendarServiceIntegrationTest {
         // 8월에만 일정 생성
         Schedule schedule = Schedule.create(
                 testStudy, "8월 일정", "설명",
-                LocalDateTime.of(2025, 8, 15, 10, 0), "장소", List.of(testSection)
+                LocalDateTime.of(2025, 8, 15, 10, 0), "장소", true, List.of(testSection)
         );
         scheduleRepository.save(schedule);
 
@@ -135,9 +135,9 @@ class ScheduleCalendarServiceIntegrationTest {
 
         // 8월에 3개 일정 생성
         List<Schedule> schedules = List.of(
-                Schedule.create(testStudy, "일정1", "설명1", LocalDateTime.of(2025, 8, 1, 10, 0), "장소1", List.of(testSection)),
-                Schedule.create(testStudy, "일정2", "설명2", LocalDateTime.of(2025, 8, 15, 14, 0), "장소2", List.of(testSection)),
-                Schedule.create(testStudy, "일정3", "설명3", LocalDateTime.of(2025, 8, 31, 20, 0), "장소3", List.of(testSection))
+                Schedule.create(testStudy, "일정1", "설명1", LocalDateTime.of(2025, 8, 1, 10, 0), "장소1", true, List.of(testSection)),
+                Schedule.create(testStudy, "일정2", "설명2", LocalDateTime.of(2025, 8, 15, 14, 0), "장소2", false, List.of(testSection)),
+                Schedule.create(testStudy, "일정3", "설명3", LocalDateTime.of(2025, 8, 31, 20, 0), "장소3", true, List.of(testSection))
         );
 
         scheduleRepository.saveAll(schedules);
@@ -209,11 +209,11 @@ class ScheduleCalendarServiceIntegrationTest {
         // 8월과 9월에 각각 일정 생성
         Schedule augustSchedule = Schedule.create(
                 testStudy, "8월 일정", "설명",
-                LocalDateTime.of(2025, 8, 15, 10, 0), "장소", List.of(testSection)
+                LocalDateTime.of(2025, 8, 15, 10, 0), "장소", true, List.of(testSection)
         );
         Schedule septemberSchedule = Schedule.create(
                 testStudy, "9월 일정", "설명",
-                LocalDateTime.of(2025, 9, 15, 10, 0), "장소", List.of(testSection)
+                LocalDateTime.of(2025, 9, 15, 10, 0), "장소", false, List.of(testSection)
         );
 
         scheduleRepository.save(augustSchedule);

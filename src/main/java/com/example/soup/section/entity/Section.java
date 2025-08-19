@@ -3,6 +3,7 @@ package com.example.soup.section.entity;
 import com.example.soup.study.entity.Study;
 import com.example.soup.schedule.entity.Schedule;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -24,6 +25,10 @@ public class Section {
 	private Long id;
 	private Long sectionNumber;
 	private String sectionName;
+	
+	@Column(name = "needs_review", nullable = false)
+	private Boolean needsReview;   // 회고 필요 여부
+	
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "study_id")
 	private Study study;
@@ -32,22 +37,24 @@ public class Section {
 	@JoinColumn(name = "schedule_id")
 	private Schedule schedule;
 
-	public static Section create(Long sectionNumber, String sectionName, Study study, Schedule schedule) {
+	public static Section create(Long sectionNumber, String sectionName, Study study, Schedule schedule, Boolean needsReview) {
 		Section section = new Section();
 		section.sectionNumber = sectionNumber;
 		section.sectionName = sectionName;
 		section.study = study;
 		section.schedule = schedule;
+		section.needsReview = needsReview != null ? needsReview : true;
 		return section;
 	}
 
 	public static Section create(Long sectionNumber, String sectionName, Study study) {
-		return create(sectionNumber, sectionName, study, null);
+		return create(sectionNumber, sectionName, study, null, true);
 	}
 
-	public void update(Long sectionNumber, String sectionName) {
+	public void update(Long sectionNumber, String sectionName, Boolean needsReview) {
 		this.sectionNumber = sectionNumber;
 		this.sectionName = sectionName;
+		this.needsReview = needsReview != null ? needsReview : true;
 	}
 
 	public void setSchedule(Schedule schedule) {

@@ -39,6 +39,7 @@ public class AdminScheduleService {
 			request.getDescription(),
 			request.getScheduleDate(),
 			request.getMeetingLocation(),
+			true, // 기본적으로 심화학습 포함
 			sections
 		);
 		Schedule saved = scheduleRepository.save(schedule);
@@ -103,6 +104,7 @@ public class AdminScheduleService {
 			request.getDescription(),
 			request.getScheduleDate(),
 			request.getMeetingLocation(),
+			true, // 기본적으로 심화학습 포함
 			sections
 		);
 
