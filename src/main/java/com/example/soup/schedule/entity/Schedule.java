@@ -60,6 +60,9 @@ public class Schedule {
 		schedule.meetingLocation = meetingLocation;
 		schedule.createdAt = LocalDateTime.now();
 		if (sections != null) {
+			for (Section section : sections) {
+				section.setSchedule(schedule);
+			}
 			schedule.sections.addAll(sections);
 		}
 		return schedule;
@@ -80,6 +83,9 @@ public class Schedule {
 		// 연관 Section 변경 처리
 		if (sections != null) {
 			this.sections.clear();
+			for (Section section : sections) {
+				section.setSchedule(this);
+			}
 			this.sections.addAll(sections);
 		}
 	}
