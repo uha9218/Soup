@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.*;
 @Transactional
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
-class StudyProgressServiceIntegrationTest {
+class StudyProgressServiceFunctionalTest {
 
     @Autowired
     private StudyProgressService studyProgressService;
@@ -118,7 +118,7 @@ class StudyProgressServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("스터디 진행 현황 조회 성공 - 통합 테스트")
+    @DisplayName("스터디 진행 현황 조회 성공 - 기능 테스트")
     void getStudyProgress_success() {
         // given
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
@@ -156,7 +156,7 @@ class StudyProgressServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("회고와 심화학습 제출 상태 정확히 반영 - 통합 테스트")
+    @DisplayName("회고와 심화학습 제출 상태 정확히 반영 - 기능 테스트")
     void getStudyProgress_submissionStatus() {
         // given
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
@@ -196,7 +196,7 @@ class StudyProgressServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("스케줄이 없는 스터디인 경우 빈 스케줄 목록 반환 - 통합 테스트")
+    @DisplayName("스케줄이 없는 스터디인 경우 빈 스케줄 목록 반환 - 기능 테스트")
     void getStudyProgress_emptySchedules() {
         // given
         Study emptyStudy = Study.create(
@@ -221,7 +221,7 @@ class StudyProgressServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("섹션이 없는 스케줄인 경우 빈 섹션 목록 반환 - 통합 테스트")
+    @DisplayName("섹션이 없는 스케줄인 경우 빈 섹션 목록 반환 - 기능 테스트")
     void getStudyProgress_emptySections() {
         // given
         final Schedule emptySchedule = Schedule.create(
@@ -247,7 +247,7 @@ class StudyProgressServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 스터디 ID로 조회 시 예외 발생 - 통합 테스트")
+    @DisplayName("존재하지 않는 스터디 ID로 조회 시 예외 발생 - 기능 테스트")
     void getStudyProgress_studyNotFound() {
         // given
         Long invalidStudyId = 999L;
@@ -262,7 +262,7 @@ class StudyProgressServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("여러 사용자의 회고와 심화학습 제출 상태 복합 검증 - 통합 테스트")
+    @DisplayName("여러 사용자의 회고와 심화학습 제출 상태 복합 검증 - 기능 테스트")
     void getStudyProgress_complexSubmissionStatus() {
         // given
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
@@ -323,9 +323,65 @@ class StudyProgressServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("Repository 쿼리 검증 - 통합 테스트")
-    void verifyRepositoryQuery() {
+    @DisplayName("과제가 필수가 아닌 경우의 상태 검증 - 기능 테스트")
+    void getStudyProgress_optionalAssignmentStatus() {
         // given
+        StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
+                .studyId(testStudy.getId())
+                .build();
+
+        // testSchedule2는 hasDeepStudy=false로 설정되어 있음
+        // user1이 Section 5(회고가 필수가 아닌 섹션)에 회고를 제출하지 않은 상황
+
+        // when
+        StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
+
+        // then
+        assertThat(result.getSchedules()).hasSize(2);
+
+        // 두 번째 스케줄 (hasDeepStudy=false) 검증
+        StudyProgressResponseDTO.ScheduleProgressDTO secondSchedule = result.getSchedules().get(1);
+        assertThat(secondSchedule.getScheduleId()).isEqualTo(testSchedule2.getId());
+        assertThat(secondSchedule.getHasDeepStudy()).isFalse(); // 심화학습 필수 아님
+
+        StudyProgressResponseDTO.SectionProgressDTO secondSection = secondSchedule.getSections().get(0);
+        assertThat(secondSection.getSectionId()).isEqualTo(testSection3.getId());
+        assertThat(secondSection.getNeedsReview()).isFalse(); // 회고 필수 아님
+
+        // 사용자들의 제출 상태 검증
+        List<StudyProgressResponseDTO.MemberProgressDTO> members = secondSection.getMembers();
+        assertThat(members).hasSize(2); // user1, user2
+
+        // user1 검증
+        StudyProgressResponseDTO.MemberProgressDTO user1Member = members.stream()
+                .filter(m -> m.getUserId().equals(testUser1.getId()))
+                .findFirst()
+                .orElseThrow();
+        // 회고가 필수가 아니고 실제로 제출하지 않았으므로 false
+        assertThat(user1Member.getReviewSubmitted()).isFalse();
+        // 심화학습이 필수가 아니고 실제로 제출하지 않았으므로 false
+        assertThat(user1Member.getDeepStudySubmitted()).isFalse();
+
+        // user2 검증
+        StudyProgressResponseDTO.MemberProgressDTO user2Member = members.stream()
+                .filter(m -> m.getUserId().equals(testUser2.getId()))
+                .findFirst()
+                .orElseThrow();
+        // 회고가 필수가 아니고 실제로 제출하지 않았으므로 false
+        assertThat(user2Member.getReviewSubmitted()).isFalse();
+        // 심화학습이 필수가 아니고 실제로 제출하지 않았으므로 false
+        assertThat(user2Member.getDeepStudySubmitted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("스터디에 참여하는 사용자가 없을 경우 - 기능 테스트")
+    void getStudyProgress_noUsers() {
+        // given
+        // 기존 사용자들을 모두 삭제
+        reviewRepository.deleteAll();
+        deepStudyRepository.deleteAll();
+        userRepository.deleteAll();
+
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(testStudy.getId())
                 .build();
@@ -337,19 +393,33 @@ class StudyProgressServiceIntegrationTest {
         assertThat(result.getStudyName()).isEqualTo("Spring Study");
         assertThat(result.getSchedules()).hasSize(2);
 
-        // 실제 DB에서 조회된 데이터 검증
-        List<Schedule> schedulesFromDB = scheduleRepository.findByStudyId(testStudy.getId());
-        assertThat(schedulesFromDB).hasSize(2);
+        // 첫 번째 스케줄 검증
+        StudyProgressResponseDTO.ScheduleProgressDTO firstSchedule = result.getSchedules().get(0);
+        assertThat(firstSchedule.getSections()).hasSize(2);
 
-        List<Section> sectionsFromDB = sectionRepository.findByScheduleId(testSchedule1.getId());
-        assertThat(sectionsFromDB).hasSize(2);
+        // 첫 번째 섹션의 멤버 목록이 비어있는지 확인
+        StudyProgressResponseDTO.SectionProgressDTO firstSection = firstSchedule.getSections().get(0);
+        assertThat(firstSection.getMembers()).isEmpty();
 
+        // 두 번째 섹션의 멤버 목록도 비어있는지 확인
+        StudyProgressResponseDTO.SectionProgressDTO secondSection = firstSchedule.getSections().get(1);
+        assertThat(secondSection.getMembers()).isEmpty();
+
+        // 두 번째 스케줄 검증
+        StudyProgressResponseDTO.ScheduleProgressDTO secondSchedule = result.getSchedules().get(1);
+        assertThat(secondSchedule.getSections()).hasSize(1);
+
+        // 세 번째 섹션의 멤버 목록도 비어있는지 확인
+        StudyProgressResponseDTO.SectionProgressDTO thirdSection = secondSchedule.getSections().get(0);
+        assertThat(thirdSection.getMembers()).isEmpty();
+
+        // 실제 DB에서 사용자가 없는지 확인
         List<User> usersFromDB = userRepository.findAll();
-        assertThat(usersFromDB).hasSize(2);
+        assertThat(usersFromDB).isEmpty();
     }
 
     @Test
-    @DisplayName("현재 진행 중인 스터디 진행 현황 조회 성공 - 통합 테스트")
+    @DisplayName("현재 진행 중인 스터디 진행 현황 조회 성공 - 기능 테스트")
     void getCurrentStudyProgress_success() {
         // given
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
@@ -377,7 +447,7 @@ class StudyProgressServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("현재 진행 중인 스터디 조회 성공 - 통합 테스트")
+    @DisplayName("현재 진행 중인 스터디 조회 성공 - 기능 테스트")
     void getCurrentActiveStudy_success() {
         // when
         Study result = studyProgressService.getCurrentActiveStudy();
