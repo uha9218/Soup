@@ -5,3 +5,27 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+
+# p6spy 로깅 설정 (테스트용)
+logging:
+  level:
+    com.p6spy.engine.spy: DEBUG
+    com.example.soup.schedule: DEBUG
+
+# Spring Boot Actuator 설정 (테스트용)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: httpexchanges,health,metrics,info
+  httpexchanges:
+    recording:
+      enabled: true
+  endpoint:
+    httpexchanges:
+      enabled: true

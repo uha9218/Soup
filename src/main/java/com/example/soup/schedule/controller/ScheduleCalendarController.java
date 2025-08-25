@@ -1,5 +1,6 @@
 package com.example.soup.schedule.controller;
 
+import com.example.soup.annotation.LogExecutionTime;
 import com.example.soup.schedule.dto.ScheduleCalendarRequestDTO;
 import com.example.soup.schedule.dto.ScheduleCalendarResponseDTO;
 import com.example.soup.schedule.service.ScheduleCalendarService;
@@ -20,10 +21,19 @@ public class ScheduleCalendarController {
      * @param request 년도와 월 정보
      * @return 해당 월의 일정 목록
      */
+    @LogExecutionTime
     @PostMapping("/calendar")
     public ResponseEntity<ScheduleCalendarResponseDTO> getMonthlySchedules(
             @RequestBody ScheduleCalendarRequestDTO request) {
-        ScheduleCalendarResponseDTO response = scheduleCalendarService.getMonthlySchedules(request);
-        return ResponseEntity.ok(response);
+        try {
+            ScheduleCalendarResponseDTO response = scheduleCalendarService.getMonthlySchedules(request);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            // 잘못된 입력값에 대한 400 Bad Request 응답
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            // 기타 예외에 대한 500 Internal Server Error 응답
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
