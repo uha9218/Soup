@@ -199,3 +199,6 @@ set HEAP=-Xms1g -Xmx2g -XX:MaxMetaspaceSize=256m
 1. JMeter 공식 문서 참조
 2. Spring Boot 애플리케이션 로그 확인
 3. 시스템 리소스 모니터링 도구 사용
+
+
+

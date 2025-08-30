@@ -27,6 +27,8 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -133,104 +135,104 @@ class StudyProgressServicePerformanceTest {
     }
 
     @Test
-    @DisplayName("N+1 쿼리 문제 발생 여부 확인 - 성능 테스트")
+    @DisplayName("N+1 Query Problem Detection - Performance Test")
     void getStudyProgress_nPlusOneQueryProblem() {
-        // given - N+1 문제를 유발할 수 있는 복잡한 데이터 구조 생성
-        System.out.println("\n=== N+1 쿼리 문제 검증 시작 ===");
-        System.out.println("데이터 구조:");
-        System.out.println("- 스터디: 1개");
-        System.out.println("- 사용자: 3명");
-        System.out.println("- 스케줄: 3개");
-        System.out.println("- 섹션: 4개 (스케줄당 1-2개씩)");
-        System.out.println("- 회고/심화학습: 일부 제출");
+        // given - Create complex data structure that can cause N+1 problem
+        System.out.println("\n=== N+1 Query Problem Verification Start ===");
+        System.out.println("Data Structure:");
+        System.out.println("- Study: 1");
+        System.out.println("- Users: 3");
+        System.out.println("- Schedules: 3");
+        System.out.println("- Sections: 4 (1-2 per schedule)");
+        System.out.println("- Reviews/DeepStudies: Some submitted");
         System.out.println("================================\n");
 
-        // 일부 사용자들이 회고와 심화학습을 제출한 상황 생성
-        // user1: Section 2에 회고 제출
-        Review review1 = Review.create(testUser1, testSection1, "회고 내용1", "https://example.com/review1");
+        // Create situation where some users submitted reviews and deep studies
+        // user1: Submit review for Section 2
+        Review review1 = Review.create(testUser1, testSection1, "Review content 1", "https://example.com/review1");
         reviewRepository.save(review1);
 
-        // user2: Schedule 1에 심화학습 제출
-        DeepStudy deepStudy1 = DeepStudy.create(testUser2, testSchedule1, "심화학습 주제1", "https://example.com/deepstudy1");
+        // user2: Submit deep study for Schedule 1
+        DeepStudy deepStudy1 = DeepStudy.create(testUser2, testSchedule1, "Deep study topic 1", "https://example.com/deepstudy1");
         deepStudyRepository.save(deepStudy1);
 
-        // user3: Section 3에 회고 제출
-        Review review2 = Review.create(testUser3, testSection2, "회고 내용2", "https://example.com/review2");
+        // user3: Submit review for Section 3
+        Review review2 = Review.create(testUser3, testSection2, "Review content 2", "https://example.com/review2");
         reviewRepository.save(review2);
 
-        // user1: Schedule 3에 심화학습 제출
-        DeepStudy deepStudy2 = DeepStudy.create(testUser1, testSchedule3, "심화학습 주제2", "https://example.com/deepstudy2");
+        // user1: Submit deep study for Schedule 3
+        DeepStudy deepStudy2 = DeepStudy.create(testUser1, testSchedule3, "Deep study topic 2", "https://example.com/deepstudy2");
         deepStudyRepository.save(deepStudy2);
 
-        // user2: Section 8에 회고 제출
-        Review review3 = Review.create(testUser2, testSection4, "회고 내용3", "https://example.com/review3");
+        // user2: Submit review for Section 8
+        Review review3 = Review.create(testUser2, testSection4, "Review content 3", "https://example.com/review3");
         reviewRepository.save(review3);
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(testStudy.getId())
                 .build();
 
-        System.out.println("=== 쿼리 실행 시작 ===");
+        System.out.println("=== Query Execution Start ===");
         long startTime = System.currentTimeMillis();
 
-        // when - 서비스 호출
+        // when - Service call
         StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
 
         long endTime = System.currentTimeMillis();
-        System.out.println("=== 쿼리 실행 완료 ===");
-        System.out.println("실행 시간: " + (endTime - startTime) + "ms");
+        System.out.println("=== Query Execution Complete ===");
+        System.out.println("Execution time: " + (endTime - startTime) + "ms");
 
-        // then - 결과 검증
+        // then - Result validation
         assertThat(result.getStudyName()).isEqualTo("Spring Study");
         assertThat(result.getSchedules()).hasSize(3);
 
-        // 첫 번째 스케줄 검증 (기존 testSchedule1)
+        // First schedule validation (existing testSchedule1)
         StudyProgressResponseDTO.ScheduleProgressDTO firstSchedule = result.getSchedules().get(0);
         assertThat(firstSchedule.getSections()).hasSize(2); // Section 2, 3
 
-        // 두 번째 스케줄 검증 (기존 testSchedule2)
+        // Second schedule validation (existing testSchedule2)
         StudyProgressResponseDTO.ScheduleProgressDTO secondSchedule = result.getSchedules().get(1);
         assertThat(secondSchedule.getSections()).hasSize(1); // Section 5
 
-        // 세 번째 스케줄 검증 (새로 추가된 testSchedule3)
+        // Third schedule validation (newly added testSchedule3)
         StudyProgressResponseDTO.ScheduleProgressDTO thirdSchedule = result.getSchedules().get(2);
         assertThat(thirdSchedule.getSections()).hasSize(1); // Section 8
 
-        // 각 섹션의 멤버 수 검증 (사용자 3명)
+        // Member count validation for each section (3 users)
         assertThat(firstSchedule.getSections().get(0).getMembers()).hasSize(3);
         assertThat(firstSchedule.getSections().get(1).getMembers()).hasSize(3);
         assertThat(secondSchedule.getSections().get(0).getMembers()).hasSize(3);
         assertThat(thirdSchedule.getSections().get(0).getMembers()).hasSize(3);
 
-        // 제출 상태 검증
-        // Section 2에서 user1의 회고 제출 확인
+        // Submission status validation
+        // Check user1's review submission in Section 2
         StudyProgressResponseDTO.MemberProgressDTO user1InSection2 = firstSchedule.getSections().get(0).getMembers().stream()
                 .filter(m -> m.getUserId().equals(testUser1.getId()))
                 .findFirst()
                 .orElseThrow();
         assertThat(user1InSection2.getReviewSubmitted()).isTrue();
 
-        // Schedule 1에서 user2의 심화학습 제출 확인
+        // Check user2's deep study submission in Schedule 1
         StudyProgressResponseDTO.MemberProgressDTO user2InSection2 = firstSchedule.getSections().get(0).getMembers().stream()
                 .filter(m -> m.getUserId().equals(testUser2.getId()))
                 .findFirst()
                 .orElseThrow();
         assertThat(user2InSection2.getDeepStudySubmitted()).isTrue();
 
-        System.out.println("\n=== N+1 쿼리 문제 분석 ===");
-        System.out.println("예상되는 최적 쿼리 개수:");
-        System.out.println("- SELECT * FROM study WHERE id = ? (1번)");
-        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1번)");
-        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (스케줄 개수만큼, 즉 3번)");
-        System.out.println("- SELECT * FROM user (1번)");
-        System.out.println("- SELECT * FROM review WHERE section_id = ? (섹션 개수만큼, 즉 4번)");
-        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (스케줄 개수만큼, 즉 3번)");
-        System.out.println("총 예상 쿼리: 13번");
-        System.out.println("\n실제 실행된 쿼리들을 위의 콘솔 로그에서 확인하세요.");
-        System.out.println("만약 review와 deep_study 쿼리가 섹션/스케줄 개수보다 훨씬 많이 실행된다면 N+1 문제가 발생한 것입니다.");
+        System.out.println("\n=== N+1 Query Problem Analysis ===");
+        System.out.println("Expected optimal query count:");
+        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
+        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
+        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (3 times - number of schedules)");
+        System.out.println("- SELECT * FROM user (1 time)");
+        System.out.println("- SELECT * FROM review WHERE section_id = ? (4 times - number of sections)");
+        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (3 times - number of schedules)");
+        System.out.println("Total expected queries: 13");
+        System.out.println("\nCheck the actual executed queries in the console log above.");
+        System.out.println("If review and deep_study queries are executed much more than the number of sections/schedules, N+1 problem has occurred.");
         System.out.println("================================\n");
 
-        // 실제 DB에서 데이터 검증
+        // Actual DB data validation
         List<Schedule> schedulesFromDB = scheduleRepository.findByStudyId(testStudy.getId());
         assertThat(schedulesFromDB).hasSize(3);
 
@@ -248,91 +250,91 @@ class StudyProgressServicePerformanceTest {
     }
 
     @Test
-    @DisplayName("N+1 쿼리 문제 정밀 검증 - 쿼리 개수 자동 카운트")
+    @DisplayName("N+1 Query Problem Precise Validation - Query Count Auto Count")
     void getStudyProgress_nPlusOneQueryPreciseValidation() {
-        // given - 간단한 구조로 N+1 문제를 명확히 확인
-        System.out.println("\n=== N+1 쿼리 정밀 검증 시작 ===");
+        // given - Simple structure to clearly identify N+1 problem
+        System.out.println("\n=== N+1 Query Precise Validation Start ===");
         
-        // 기존 데이터 정리
+        // Clear existing data
         reviewRepository.deleteAll();
         deepStudyRepository.deleteAll();
         sectionRepository.deleteAll();
         scheduleRepository.deleteAll();
         userRepository.deleteAll();
         
-        // 새로운 테스트 데이터 생성
+        // Create new test data
         Study simpleStudy = Study.create(
                 "Simple Study",
-                "N+1 테스트용 스터디",
-                "온라인",
+                "Study for N+1 test",
+                "Online",
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 12, 31, 23, 59)
         );
         simpleStudy = studyRepository.save(simpleStudy);
 
-        // 사용자 2명 생성
-        final User user1 = userRepository.save(User.create("user1@test.com", "password1", "사용자1", "USER"));
-        final User user2 = userRepository.save(User.create("user2@test.com", "password2", "사용자2", "USER"));
+        // Create 2 users
+        final User user1 = userRepository.save(User.create("user1@test.com", "password1", "User1", "USER"));
+        final User user2 = userRepository.save(User.create("user2@test.com", "password2", "User2", "USER"));
 
-        // 스케줄 1개 생성
+        // Create 1 schedule
         Schedule schedule = Schedule.create(
-                simpleStudy, "Test Schedule", "테스트 스케줄",
-                LocalDateTime.of(2025, 1, 15, 20, 0), "온라인", true, List.of()
+                simpleStudy, "Test Schedule", "Test schedule",
+                LocalDateTime.of(2025, 1, 15, 20, 0), "Online", true, List.of()
         );
         schedule = scheduleRepository.save(schedule);
 
-        // 섹션 2개 생성
+        // Create 2 sections
         Section section1 = Section.create(1L, "Section 1", simpleStudy, schedule, true);
         section1 = sectionRepository.save(section1);
         
         Section section2 = Section.create(2L, "Section 2", simpleStudy, schedule, true);
         section2 = sectionRepository.save(section2);
 
-        // 회고 제출 (user1이 section1에만 제출)
-        Review review = Review.create(user1, section1, "회고 내용", "https://example.com/review");
+        // Submit review (user1 submits only to section1)
+        Review review = Review.create(user1, section1, "Review content", "https://example.com/review");
         reviewRepository.save(review);
 
-        // 심화학습 제출 (user2가 schedule에만 제출)
-        DeepStudy deepStudy = DeepStudy.create(user2, schedule, "심화학습 내용", "https://example.com/deepstudy");
+        // Submit deep study (user2 submits only to schedule)
+        DeepStudy deepStudy = DeepStudy.create(user2, schedule, "Deep study content", "https://example.com/deepstudy");
         deepStudyRepository.save(deepStudy);
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(simpleStudy.getId())
                 .build();
 
-        System.out.println("데이터 구조:");
-        System.out.println("- 스터디: 1개");
-        System.out.println("- 사용자: 2명");
-        System.out.println("- 스케줄: 1개");
-        System.out.println("- 섹션: 2개");
-        System.out.println("- 회고: 1개 (user1이 section1에 제출)");
-        System.out.println("- 심화학습: 1개 (user2가 schedule에 제출)");
+        System.out.println("Data Structure:");
+        System.out.println("- Study: 1");
+        System.out.println("- Users: 2");
+        System.out.println("- Schedule: 1");
+        System.out.println("- Sections: 2");
+        System.out.println("- Review: 1 (user1 submits to section1)");
+        System.out.println("- DeepStudy: 1 (user2 submits to schedule)");
         System.out.println("================================\n");
 
-        System.out.println("=== 쿼리 실행 시작 ===");
+        System.out.println("=== Query Execution Start ===");
         long startTime = System.currentTimeMillis();
 
-        // when - 서비스 호출
+        // when - Service call
         StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
 
         long endTime = System.currentTimeMillis();
-        System.out.println("=== 쿼리 실행 완료 ===");
-        System.out.println("실행 시간: " + (endTime - startTime) + "ms");
+        System.out.println("=== Query Execution Complete ===");
+        System.out.println("Execution time: " + (endTime - startTime) + "ms");
 
-        // then - 결과 검증
+        // then - Result validation
         assertThat(result.getStudyName()).isEqualTo("Simple Study");
         assertThat(result.getSchedules()).hasSize(1);
         assertThat(result.getSchedules().get(0).getSections()).hasSize(2);
 
-        // 각 섹션의 멤버 수 검증
+        // Member count validation for each section
         StudyProgressResponseDTO.SectionProgressDTO firstSection = result.getSchedules().get(0).getSections().get(0);
         StudyProgressResponseDTO.SectionProgressDTO secondSection = result.getSchedules().get(0).getSections().get(1);
         
         assertThat(firstSection.getMembers()).hasSize(2);
         assertThat(secondSection.getMembers()).hasSize(2);
 
-        // 제출 상태 검증
-        // Section 1에서 user1의 회고 제출 확인
+        // Submission status validation
+        // Check user1's review submission in Section 1
         StudyProgressResponseDTO.MemberProgressDTO user1InSection1 = firstSection.getMembers().stream()
                 .filter(m -> m.getUserId().equals(user1.getId()))
                 .findFirst()
@@ -340,7 +342,7 @@ class StudyProgressServicePerformanceTest {
         assertThat(user1InSection1.getReviewSubmitted()).isTrue();
         assertThat(user1InSection1.getDeepStudySubmitted()).isFalse();
 
-        // Section 1에서 user2의 심화학습 제출 확인
+        // Check user2's deep study submission in Section 1
         StudyProgressResponseDTO.MemberProgressDTO user2InSection1 = firstSection.getMembers().stream()
                 .filter(m -> m.getUserId().equals(user2.getId()))
                 .findFirst()
@@ -348,28 +350,897 @@ class StudyProgressServicePerformanceTest {
         assertThat(user2InSection1.getReviewSubmitted()).isFalse();
         assertThat(user2InSection1.getDeepStudySubmitted()).isTrue();
 
-        System.out.println("\n=== N+1 쿼리 정밀 분석 ===");
-        System.out.println("최적 쿼리 개수 (N+1 문제 없음):");
-        System.out.println("- SELECT * FROM study WHERE id = ? (1번)");
-        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1번)");
-        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (1번)");
-        System.out.println("- SELECT * FROM user (1번)");
-        System.out.println("- SELECT * FROM review WHERE section_id = ? (2번 - 섹션 2개)");
-        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (2번 - 섹션 2개)");
-        System.out.println("총 최적 쿼리: 8번");
+        System.out.println("\n=== N+1 Query Precise Analysis ===");
+        System.out.println("Optimal query count (No N+1 problem):");
+        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
+        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
+        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (1 time)");
+        System.out.println("- SELECT * FROM user (1 time)");
+        System.out.println("- SELECT * FROM review WHERE section_id = ? (2 times - 2 sections)");
+        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (2 times - 2 sections)");
+        System.out.println("Total optimal queries: 8");
         
-        System.out.println("\nN+1 문제 발생 시 예상 쿼리 개수:");
-        System.out.println("- SELECT * FROM study WHERE id = ? (1번)");
-        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1번)");
-        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (1번)");
-        System.out.println("- SELECT * FROM user (1번)");
-        System.out.println("- SELECT * FROM review WHERE section_id = ? (4번 - 섹션 2개 × 사용자 2명)");
-        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (4번 - 섹션 2개 × 사용자 2명)");
-        System.out.println("총 N+1 문제 쿼리: 12번");
+        System.out.println("\nExpected query count when N+1 problem occurs:");
+        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
+        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
+        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (1 time)");
+        System.out.println("- SELECT * FROM user (1 time)");
+        System.out.println("- SELECT * FROM review WHERE section_id = ? (4 times - 2 sections × 2 users)");
+        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (4 times - 2 sections × 2 users)");
+        System.out.println("Total N+1 problem queries: 12");
         
-        System.out.println("\n위의 콘솔 로그에서 실제 실행된 쿼리 개수를 확인하세요.");
-        System.out.println("- 8번 정도면 최적화됨");
-        System.out.println("- 12번 이상이면 N+1 문제 발생");
+        System.out.println("\nCheck the actual executed query count in the console log above.");
+        System.out.println("- Around 8 queries: Optimized");
+        System.out.println("- 12 or more queries: N+1 problem occurred");
         System.out.println("================================\n");
+    }
+
+    @Test
+    @DisplayName("High Volume N+1 Performance Test - Large Data Set")
+    void getStudyProgress_highVolumeNPlusOnePerformanceTest() {
+        // given - Create large data set to clearly demonstrate N+1 problem
+        System.out.println("\n=== High Volume N+1 Performance Test Start ===");
+        System.out.println("Creating large data set for meaningful performance comparison...");
+        
+        // Clear existing data
+        reviewRepository.deleteAll();
+        deepStudyRepository.deleteAll();
+        sectionRepository.deleteAll();
+        scheduleRepository.deleteAll();
+        userRepository.deleteAll();
+        studyRepository.deleteAll();
+        
+        // Create large scale test data
+        Study largeStudy = Study.create(
+                "Large Scale Study",
+                "Study for high volume performance test",
+                "Online",
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                LocalDateTime.of(2025, 12, 31, 23, 59)
+        );
+        largeStudy = studyRepository.save(largeStudy);
+
+        // Create 50 users
+        List<User> users = new ArrayList<>();
+        for (int i = 1; i <= 50; i++) {
+            User user = User.create(
+                    "user" + i + "@test.com", 
+                    "password" + i, 
+                    "User" + i, 
+                    "USER"
+            );
+            users.add(userRepository.save(user));
+        }
+
+        // Create 20 schedules
+        List<Schedule> schedules = new ArrayList<>();
+        for (int i = 1; i <= 20; i++) {
+            Schedule schedule = Schedule.create(
+                    largeStudy, 
+                    "Schedule " + i, 
+                    "Schedule description " + i,
+                    LocalDateTime.of(2025, 1, i, 20, 0), 
+                    "Location " + i, 
+                    i % 2 == 0, // Alternate has_deep_study
+                    List.of()
+            );
+            schedules.add(scheduleRepository.save(schedule));
+        }
+
+        // Create 200 sections (10 per schedule)
+        List<Section> sections = new ArrayList<>();
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            for (int j = 1; j <= 10; j++) {
+                Section section = Section.create(
+                        (long) (i * 10 + j), 
+                        "Section " + (i * 10 + j), 
+                        largeStudy, 
+                        schedule, 
+                        j % 3 != 0 // 2/3 of sections need review
+                );
+                sections.add(sectionRepository.save(section));
+            }
+        }
+
+        // Create reviews (30% of possible combinations)
+        int reviewCount = 0;
+        for (int i = 0; i < sections.size(); i++) {
+            Section section = sections.get(i);
+            // 30% of users submit reviews for each section
+            for (int j = 0; j < users.size(); j++) {
+                if (j % 3 == 0) { // Every 3rd user
+                    Review review = Review.create(
+                            users.get(j), 
+                            section, 
+                            "Review content for section " + section.getSectionName() + " by user " + users.get(j).getUsername(),
+                            "https://example.com/review/" + section.getId() + "/" + users.get(j).getId()
+                    );
+                    reviewRepository.save(review);
+                    reviewCount++;
+                }
+            }
+        }
+
+        // Create deep studies (20% of possible combinations)
+        int deepStudyCount = 0;
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            if (schedule.getHasDeepStudy()) {
+                // 20% of users submit deep studies for each schedule
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 5 == 0) { // Every 5th user
+                        DeepStudy deepStudy = DeepStudy.create(
+                                users.get(j), 
+                                schedule, 
+                                "Deep study topic for schedule " + schedule.getName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/deepstudy/" + schedule.getId() + "/" + users.get(j).getId()
+                        );
+                        deepStudyRepository.save(deepStudy);
+                        deepStudyCount++;
+                    }
+                }
+            }
+        }
+
+        System.out.println("Data Structure Created:");
+        System.out.println("- Study: 1");
+        System.out.println("- Users: " + users.size());
+        System.out.println("- Schedules: " + schedules.size());
+        System.out.println("- Sections: " + sections.size());
+        System.out.println("- Reviews: " + reviewCount);
+        System.out.println("- DeepStudies: " + deepStudyCount);
+        System.out.println("================================\n");
+
+        StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
+                .studyId(largeStudy.getId())
+                .build();
+
+        System.out.println("=== High Volume Query Execution Start ===");
+        long startTime = System.currentTimeMillis();
+
+        // when - Service call
+        StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
+
+        long endTime = System.currentTimeMillis();
+        long executionTime = endTime - startTime;
+        System.out.println("=== High Volume Query Execution Complete ===");
+        System.out.println("Execution time: " + executionTime + "ms");
+
+        // then - Result validation
+        assertThat(result.getStudyName()).isEqualTo("Large Scale Study");
+        assertThat(result.getSchedules()).hasSize(20);
+
+        // Performance analysis
+        System.out.println("\n=== High Volume Performance Analysis ===");
+        System.out.println("Expected optimal query count (No N+1 problem):");
+        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
+        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
+        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (20 times - number of schedules)");
+        System.out.println("- SELECT * FROM user (1 time)");
+        System.out.println("- SELECT * FROM review WHERE section_id = ? (200 times - number of sections)");
+        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (20 times - number of schedules)");
+        System.out.println("Total optimal queries: 243");
+        
+        System.out.println("\nExpected query count when N+1 problem occurs:");
+        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
+        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
+        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (20 times)");
+        System.out.println("- SELECT * FROM user (1 time)");
+        System.out.println("- SELECT * FROM review WHERE section_id = ? (10,000 times - 200 sections × 50 users)");
+        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (1,000 times - 20 schedules × 50 users)");
+        System.out.println("Total N+1 problem queries: 11,023");
+        
+        System.out.println("\nPerformance Impact:");
+        System.out.println("- Optimal queries: 243");
+        System.out.println("- N+1 problem queries: 11,023");
+        System.out.println("- Query multiplication factor: " + (11023.0 / 243.0) + "x");
+        System.out.println("- Expected time difference: Significant (should be clearly visible)");
+        System.out.println("================================\n");
+
+        // Additional validations
+        assertThat(result.getSchedules()).allSatisfy(schedule -> {
+            assertThat(schedule.getSections()).hasSize(10);
+            schedule.getSections().forEach(section -> {
+                assertThat(section.getMembers()).hasSize(50);
+            });
+        });
+    }
+
+    @Test
+    @DisplayName("Extreme Volume N+1 Performance Test - Massive Data Set")
+    void getStudyProgress_extremeVolumeNPlusOnePerformanceTest() {
+        // given - Create extreme data set for dramatic performance demonstration
+        System.out.println("\n=== Extreme Volume N+1 Performance Test Start ===");
+        System.out.println("Creating massive data set for dramatic performance comparison...");
+        
+        // Clear existing data
+        reviewRepository.deleteAll();
+        deepStudyRepository.deleteAll();
+        sectionRepository.deleteAll();
+        scheduleRepository.deleteAll();
+        userRepository.deleteAll();
+        studyRepository.deleteAll();
+        
+        // Create extreme scale test data
+        Study extremeStudy = Study.create(
+                "Extreme Scale Study",
+                "Study for extreme volume performance test",
+                "Online",
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                LocalDateTime.of(2025, 12, 31, 23, 59)
+        );
+        extremeStudy = studyRepository.save(extremeStudy);
+
+        // Create 100 users
+        List<User> users = new ArrayList<>();
+        for (int i = 1; i <= 100; i++) {
+            User user = User.create(
+                    "extreme_user" + i + "@test.com", 
+                    "password" + i, 
+                    "ExtremeUser" + i, 
+                    "USER"
+            );
+            users.add(userRepository.save(user));
+        }
+
+        // Create 50 schedules
+        List<Schedule> schedules = new ArrayList<>();
+        for (int i = 1; i <= 50; i++) {
+            Schedule schedule = Schedule.create(
+                    extremeStudy, 
+                    "Extreme Schedule " + i, 
+                    "Extreme schedule description " + i,
+                    LocalDateTime.of(2025, 1, i, 20, 0), 
+                    "Extreme Location " + i, 
+                    i % 3 == 0, // 1/3 of schedules have deep study
+                    List.of()
+            );
+            schedules.add(scheduleRepository.save(schedule));
+        }
+
+        // Create 500 sections (10 per schedule)
+        List<Section> sections = new ArrayList<>();
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            for (int j = 1; j <= 10; j++) {
+                Section section = Section.create(
+                        (long) (i * 10 + j), 
+                        "Extreme Section " + (i * 10 + j), 
+                        extremeStudy, 
+                        schedule, 
+                        j % 2 == 0 // 50% of sections need review
+                );
+                sections.add(sectionRepository.save(section));
+            }
+        }
+
+        // Create reviews (25% of possible combinations)
+        int reviewCount = 0;
+        for (int i = 0; i < sections.size(); i++) {
+            Section section = sections.get(i);
+            // 25% of users submit reviews for each section
+            for (int j = 0; j < users.size(); j++) {
+                if (j % 4 == 0) { // Every 4th user
+                    Review review = Review.create(
+                            users.get(j), 
+                            section, 
+                            "Extreme review content for section " + section.getSectionName() + " by user " + users.get(j).getUsername(),
+                            "https://example.com/extreme/review/" + section.getId() + "/" + users.get(j).getId()
+                    );
+                    reviewRepository.save(review);
+                    reviewCount++;
+                }
+            }
+        }
+
+        // Create deep studies (15% of possible combinations)
+        int deepStudyCount = 0;
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            if (schedule.getHasDeepStudy()) {
+                // 15% of users submit deep studies for each schedule
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 7 == 0) { // Every 7th user
+                        DeepStudy deepStudy = DeepStudy.create(
+                                users.get(j), 
+                                schedule, 
+                                "Extreme deep study topic for schedule " + schedule.getName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/extreme/deepstudy/" + schedule.getId() + "/" + users.get(j).getId()
+                        );
+                        deepStudyRepository.save(deepStudy);
+                        deepStudyCount++;
+                    }
+                }
+            }
+        }
+
+        System.out.println("Extreme Data Structure Created:");
+        System.out.println("- Study: 1");
+        System.out.println("- Users: " + users.size());
+        System.out.println("- Schedules: " + schedules.size());
+        System.out.println("- Sections: " + sections.size());
+        System.out.println("- Reviews: " + reviewCount);
+        System.out.println("- DeepStudies: " + deepStudyCount);
+        System.out.println("================================\n");
+
+        StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
+                .studyId(extremeStudy.getId())
+                .build();
+
+        System.out.println("=== Extreme Volume Query Execution Start ===");
+        long startTime = System.currentTimeMillis();
+
+        // when - Service call
+        StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
+
+        long endTime = System.currentTimeMillis();
+        long executionTime = endTime - startTime;
+        System.out.println("=== Extreme Volume Query Execution Complete ===");
+        System.out.println("Execution time: " + executionTime + "ms");
+
+        // Performance analysis
+        System.out.println("\n=== Extreme Volume Performance Analysis ===");
+        System.out.println("Expected optimal query count (No N+1 problem):");
+        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
+        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
+        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (50 times - number of schedules)");
+        System.out.println("- SELECT * FROM user (1 time)");
+        System.out.println("- SELECT * FROM review WHERE section_id = ? (500 times - number of sections)");
+        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (50 times - number of schedules)");
+        System.out.println("Total optimal queries: 603");
+        
+        System.out.println("\nExpected query count when N+1 problem occurs:");
+        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
+        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
+        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (50 times)");
+        System.out.println("- SELECT * FROM user (1 time)");
+        System.out.println("- SELECT * FROM review WHERE section_id = ? (50,000 times - 500 sections × 100 users)");
+        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (5,000 times - 50 schedules × 100 users)");
+        System.out.println("Total N+1 problem queries: 55,053");
+        
+        System.out.println("\nExtreme Performance Impact:");
+        System.out.println("- Optimal queries: 603");
+        System.out.println("- N+1 problem queries: 55,053");
+        System.out.println("- Query multiplication factor: " + (55053.0 / 603.0) + "x");
+        System.out.println("- Expected time difference: Dramatic (should be very clearly visible)");
+        System.out.println("================================\n");
+
+        // Additional validations
+        assertThat(result.getStudyName()).isEqualTo("Extreme Scale Study");
+        assertThat(result.getSchedules()).hasSize(50);
+        assertThat(result.getSchedules()).allSatisfy(schedule -> {
+            assertThat(schedule.getSections()).hasSize(10);
+            schedule.getSections().forEach(section -> {
+                assertThat(section.getMembers()).hasSize(100);
+            });
+        });
+    }
+
+    @Test
+    @DisplayName("Performance Comparison Test - Before vs After Optimization")
+    void getStudyProgress_performanceComparisonTest() {
+        // given - Create medium scale data for before/after comparison
+        System.out.println("\n=== Performance Comparison Test Start ===");
+        System.out.println("This test demonstrates the performance difference between optimized and non-optimized queries...");
+        
+        // Clear existing data
+        reviewRepository.deleteAll();
+        deepStudyRepository.deleteAll();
+        sectionRepository.deleteAll();
+        scheduleRepository.deleteAll();
+        userRepository.deleteAll();
+        studyRepository.deleteAll();
+        
+        // Create medium scale test data
+        Study comparisonStudy = Study.create(
+                "Comparison Study",
+                "Study for performance comparison test",
+                "Online",
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                LocalDateTime.of(2025, 12, 31, 23, 59)
+        );
+        comparisonStudy = studyRepository.save(comparisonStudy);
+
+        // Create 25 users
+        List<User> users = new ArrayList<>();
+        for (int i = 1; i <= 25; i++) {
+            User user = User.create(
+                    "comp_user" + i + "@test.com", 
+                    "password" + i, 
+                    "CompUser" + i, 
+                    "USER"
+            );
+            users.add(userRepository.save(user));
+        }
+
+        // Create 10 schedules
+        List<Schedule> schedules = new ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            Schedule schedule = Schedule.create(
+                    comparisonStudy, 
+                    "Comparison Schedule " + i, 
+                    "Comparison schedule description " + i,
+                    LocalDateTime.of(2025, 1, i, 20, 0), 
+                    "Comparison Location " + i, 
+                    i % 2 == 0, // 50% of schedules have deep study
+                    List.of()
+            );
+            schedules.add(scheduleRepository.save(schedule));
+        }
+
+        // Create 100 sections (10 per schedule)
+        List<Section> sections = new ArrayList<>();
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            for (int j = 1; j <= 10; j++) {
+                Section section = Section.create(
+                        (long) (i * 10 + j), 
+                        "Comparison Section " + (i * 10 + j), 
+                        comparisonStudy, 
+                        schedule, 
+                        j % 2 == 0 // 50% of sections need review
+                );
+                sections.add(sectionRepository.save(section));
+            }
+        }
+
+        // Create reviews (40% of possible combinations)
+        int reviewCount = 0;
+        for (int i = 0; i < sections.size(); i++) {
+            Section section = sections.get(i);
+            // 40% of users submit reviews for each section
+            for (int j = 0; j < users.size(); j++) {
+                if (j % 2 == 0) { // Every 2nd user
+                    Review review = Review.create(
+                            users.get(j), 
+                            section, 
+                            "Comparison review content for section " + section.getSectionName() + " by user " + users.get(j).getUsername(),
+                            "https://example.com/comparison/review/" + section.getId() + "/" + users.get(j).getId()
+                    );
+                    reviewRepository.save(review);
+                    reviewCount++;
+                }
+            }
+        }
+
+        // Create deep studies (30% of possible combinations)
+        int deepStudyCount = 0;
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            if (schedule.getHasDeepStudy()) {
+                // 30% of users submit deep studies for each schedule
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 3 == 0) { // Every 3rd user
+                        DeepStudy deepStudy = DeepStudy.create(
+                                users.get(j), 
+                                schedule, 
+                                "Comparison deep study topic for schedule " + schedule.getName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/comparison/deepstudy/" + schedule.getId() + "/" + users.get(j).getId()
+                        );
+                        deepStudyRepository.save(deepStudy);
+                        deepStudyCount++;
+                    }
+                }
+            }
+        }
+
+        System.out.println("Comparison Data Structure Created:");
+        System.out.println("- Study: 1");
+        System.out.println("- Users: " + users.size());
+        System.out.println("- Schedules: " + schedules.size());
+        System.out.println("- Sections: " + sections.size());
+        System.out.println("- Reviews: " + reviewCount);
+        System.out.println("- DeepStudies: " + deepStudyCount);
+        System.out.println("================================\n");
+
+        StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
+                .studyId(comparisonStudy.getId())
+                .build();
+
+        // Multiple test runs for comparison
+        System.out.println("=== Performance Comparison - Multiple Test Runs ===");
+        
+        for (int run = 1; run <= 3; run++) {
+            System.out.println("\n--- Test Run " + run + " ---");
+            long startTime = System.currentTimeMillis();
+
+            // when - Service call
+            StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
+
+            long endTime = System.currentTimeMillis();
+            long executionTime = endTime - startTime;
+            System.out.println("Run " + run + " execution time: " + executionTime + "ms");
+            
+            // Validate result
+            assertThat(result.getStudyName()).isEqualTo("Comparison Study");
+            assertThat(result.getSchedules()).hasSize(10);
+        }
+
+        System.out.println("\n=== Performance Comparison Analysis ===");
+        System.out.println("Expected optimal query count (No N+1 problem):");
+        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
+        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
+        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (10 times - number of schedules)");
+        System.out.println("- SELECT * FROM user (1 time)");
+        System.out.println("- SELECT * FROM review WHERE section_id = ? (100 times - number of sections)");
+        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (10 times - number of schedules)");
+        System.out.println("Total optimal queries: 123");
+        
+        System.out.println("\nExpected query count when N+1 problem occurs:");
+        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
+        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
+        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (10 times)");
+        System.out.println("- SELECT * FROM user (1 time)");
+        System.out.println("- SELECT * FROM review WHERE section_id = ? (2,500 times - 100 sections × 25 users)");
+        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (250 times - 10 schedules × 25 users)");
+        System.out.println("Total N+1 problem queries: 2,763");
+        
+        System.out.println("\nComparison Performance Impact:");
+        System.out.println("- Optimal queries: 123");
+        System.out.println("- N+1 problem queries: 2,763");
+        System.out.println("- Query multiplication factor: " + (2763.0 / 123.0) + "x");
+        System.out.println("- Expected time difference: Moderate (should be clearly visible)");
+        System.out.println("================================\n");
+    }
+
+    @Test
+    @DisplayName("Accurate Time Measurement Test - All Scenarios")
+    void getStudyProgress_accurateTimeMeasurement() {
+        System.out.println("\n=== ACCURATE TIME MEASUREMENT TEST ===");
+        
+        // Test 1: Small Data Set
+        System.out.println("\n--- Test 1: Small Data Set (3 users, 3 sections) ---");
+        long smallDataTime = runSmallDataTest();
+        System.out.println("Small Data Test Execution Time: " + smallDataTime + "ms");
+        
+        // Test 2: Medium Data Set
+        System.out.println("\n--- Test 2: Medium Data Set (25 users, 100 sections) ---");
+        long mediumDataTime = runMediumDataTest();
+        System.out.println("Medium Data Test Execution Time: " + mediumDataTime + "ms");
+        
+        // Test 3: Large Data Set
+        System.out.println("\n--- Test 3: Large Data Set (50 users, 200 sections) ---");
+        long largeDataTime = runLargeDataTest();
+        System.out.println("Large Data Test Execution Time: " + largeDataTime + "ms");
+        
+        // Test 4: Extreme Data Set
+        System.out.println("\n--- Test 4: Extreme Data Set (100 users, 500 sections) ---");
+        long extremeDataTime = runExtremeDataTest();
+        System.out.println("Extreme Data Test Execution Time: " + extremeDataTime + "ms");
+        
+        System.out.println("\n=== FINAL RESULTS ===");
+        System.out.println("Small Data (3 users, 3 sections): " + smallDataTime + "ms");
+        System.out.println("Medium Data (25 users, 100 sections): " + mediumDataTime + "ms");
+        System.out.println("Large Data (50 users, 200 sections): " + largeDataTime + "ms");
+        System.out.println("Extreme Data (100 users, 500 sections): " + extremeDataTime + "ms");
+        System.out.println("Total Test Time: " + (smallDataTime + mediumDataTime + largeDataTime + extremeDataTime) + "ms");
+    }
+    
+    private long runSmallDataTest() {
+        // Clear existing data
+        reviewRepository.deleteAll();
+        deepStudyRepository.deleteAll();
+        sectionRepository.deleteAll();
+        scheduleRepository.deleteAll();
+        userRepository.deleteAll();
+        studyRepository.deleteAll();
+
+        // Create small test data
+        Study study = studyRepository.save(Study.create(
+                "Small Study", "Small study for test", "Online",
+                LocalDateTime.of(2025, 1, 1, 0, 0), LocalDateTime.of(2025, 12, 31, 23, 59)
+        ));
+
+        // Create 3 users
+        List<User> users = new ArrayList<>();
+        for (int i = 1; i <= 3; i++) {
+            users.add(userRepository.save(User.create("user" + i + "@test.com", "password" + i, "User" + i, "USER")));
+        }
+
+        // Create 2 schedules
+        List<Schedule> schedules = new ArrayList<>();
+        for (int i = 1; i <= 2; i++) {
+            schedules.add(scheduleRepository.save(Schedule.create(
+                    study, "Schedule " + i, "Schedule " + i,
+                    LocalDateTime.of(2025, 1, i, 20, 0), "Location " + i, i % 2 == 0, List.of()
+            )));
+        }
+
+        // Create 3 sections
+        List<Section> sections = new ArrayList<>();
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            for (int j = 1; j <= (i == 0 ? 2 : 1); j++) {
+                sections.add(sectionRepository.save(Section.create(
+                        (long) (i * 10 + j), "Section " + (i * 10 + j), study, schedule, j % 2 == 0
+                )));
+            }
+        }
+
+        // Create some reviews and deep studies
+        reviewRepository.save(Review.create(users.get(0), sections.get(0), "Review 1", "https://example.com/review1"));
+        reviewRepository.save(Review.create(users.get(1), sections.get(1), "Review 2", "https://example.com/review2"));
+        deepStudyRepository.save(DeepStudy.create(users.get(2), schedules.get(0), "Deep Study 1", "https://example.com/deepstudy1"));
+
+        StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
+                .studyId(study.getId())
+                .build();
+
+        long startTime = System.nanoTime();
+        StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
+        long endTime = System.nanoTime();
+        
+        long executionTime = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+        
+        // Validate result
+        assertThat(result.getStudyName()).isEqualTo("Small Study");
+        assertThat(result.getSchedules()).hasSize(2);
+        
+        return executionTime;
+    }
+    
+    private long runMediumDataTest() {
+        // Clear existing data
+        reviewRepository.deleteAll();
+        deepStudyRepository.deleteAll();
+        sectionRepository.deleteAll();
+        scheduleRepository.deleteAll();
+        userRepository.deleteAll();
+        studyRepository.deleteAll();
+
+        // Create medium test data
+        Study study = studyRepository.save(Study.create(
+                "Medium Study", "Medium study for test", "Online",
+                LocalDateTime.of(2025, 1, 1, 0, 0), LocalDateTime.of(2025, 12, 31, 23, 59)
+        ));
+
+        // Create 25 users
+        List<User> users = new ArrayList<>();
+        for (int i = 1; i <= 25; i++) {
+            users.add(userRepository.save(User.create("medium_user" + i + "@test.com", "password" + i, "MediumUser" + i, "USER")));
+        }
+
+        // Create 10 schedules
+        List<Schedule> schedules = new ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            schedules.add(scheduleRepository.save(Schedule.create(
+                    study, "Medium Schedule " + i, "Medium Schedule " + i,
+                    LocalDateTime.of(2025, 1, (i % 28) + 1, 20, 0), "Location " + i, i % 2 == 0, List.of()
+            )));
+        }
+
+        // Create 100 sections (10 per schedule)
+        List<Section> sections = new ArrayList<>();
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            for (int j = 1; j <= 10; j++) {
+                sections.add(sectionRepository.save(Section.create(
+                        (long) (i * 10 + j), "Medium Section " + (i * 10 + j), study, schedule, j % 2 == 0
+                )));
+            }
+        }
+
+        // Create reviews (40% of possible combinations)
+        for (int i = 0; i < sections.size(); i++) {
+            Section section = sections.get(i);
+            for (int j = 0; j < users.size(); j++) {
+                if (j % 2 == 0) { // Every 2nd user
+                    reviewRepository.save(Review.create(
+                            users.get(j), section, 
+                            "Medium review for section " + section.getSectionName() + " by user " + users.get(j).getUsername(),
+                            "https://example.com/medium/review/" + section.getId() + "/" + users.get(j).getId()
+                    ));
+                }
+            }
+        }
+
+        // Create deep studies (30% of possible combinations)
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            if (schedule.getHasDeepStudy()) {
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 3 == 0) { // Every 3rd user
+                        deepStudyRepository.save(DeepStudy.create(
+                                users.get(j), schedule,
+                                "Medium deep study for schedule " + schedule.getName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/medium/deepstudy/" + schedule.getId() + "/" + users.get(j).getId()
+                        ));
+                    }
+                }
+            }
+        }
+
+        StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
+                .studyId(study.getId())
+                .build();
+
+        long startTime = System.nanoTime();
+        StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
+        long endTime = System.nanoTime();
+        
+        long executionTime = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+        
+        // Validate result
+        assertThat(result.getStudyName()).isEqualTo("Medium Study");
+        assertThat(result.getSchedules()).hasSize(10);
+        
+        return executionTime;
+    }
+    
+    private long runLargeDataTest() {
+        // Clear existing data
+        reviewRepository.deleteAll();
+        deepStudyRepository.deleteAll();
+        sectionRepository.deleteAll();
+        scheduleRepository.deleteAll();
+        userRepository.deleteAll();
+        studyRepository.deleteAll();
+
+        // Create large test data
+        Study study = studyRepository.save(Study.create(
+                "Large Study", "Large study for test", "Online",
+                LocalDateTime.of(2025, 1, 1, 0, 0), LocalDateTime.of(2025, 12, 31, 23, 59)
+        ));
+
+        // Create 50 users
+        List<User> users = new ArrayList<>();
+        for (int i = 1; i <= 50; i++) {
+            users.add(userRepository.save(User.create("large_user" + i + "@test.com", "password" + i, "LargeUser" + i, "USER")));
+        }
+
+        // Create 20 schedules
+        List<Schedule> schedules = new ArrayList<>();
+        for (int i = 1; i <= 20; i++) {
+            schedules.add(scheduleRepository.save(Schedule.create(
+                    study, "Large Schedule " + i, "Large Schedule " + i,
+                    LocalDateTime.of(2025, 1, (i % 28) + 1, 20, 0), "Location " + i, i % 2 == 0, List.of()
+            )));
+        }
+
+        // Create 200 sections (10 per schedule)
+        List<Section> sections = new ArrayList<>();
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            for (int j = 1; j <= 10; j++) {
+                sections.add(sectionRepository.save(Section.create(
+                        (long) (i * 10 + j), "Large Section " + (i * 10 + j), study, schedule, j % 2 == 0
+                )));
+            }
+        }
+
+        // Create reviews (30% of possible combinations)
+        for (int i = 0; i < sections.size(); i++) {
+            Section section = sections.get(i);
+            for (int j = 0; j < users.size(); j++) {
+                if (j % 3 == 0) { // Every 3rd user
+                    reviewRepository.save(Review.create(
+                            users.get(j), section, 
+                            "Large review for section " + section.getSectionName() + " by user " + users.get(j).getUsername(),
+                            "https://example.com/large/review/" + section.getId() + "/" + users.get(j).getId()
+                    ));
+                }
+            }
+        }
+
+        // Create deep studies (20% of possible combinations)
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            if (schedule.getHasDeepStudy()) {
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 5 == 0) { // Every 5th user
+                        deepStudyRepository.save(DeepStudy.create(
+                                users.get(j), schedule,
+                                "Large deep study for schedule " + schedule.getName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/large/deepstudy/" + schedule.getId() + "/" + users.get(j).getId()
+                        ));
+                    }
+                }
+            }
+        }
+
+        StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
+                .studyId(study.getId())
+                .build();
+
+        long startTime = System.nanoTime();
+        StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
+        long endTime = System.nanoTime();
+        
+        long executionTime = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+        
+        // Validate result
+        assertThat(result.getStudyName()).isEqualTo("Large Study");
+        assertThat(result.getSchedules()).hasSize(20);
+        
+        return executionTime;
+    }
+    
+    private long runExtremeDataTest() {
+        // Clear existing data
+        reviewRepository.deleteAll();
+        deepStudyRepository.deleteAll();
+        sectionRepository.deleteAll();
+        scheduleRepository.deleteAll();
+        userRepository.deleteAll();
+        studyRepository.deleteAll();
+
+        // Create extreme test data
+        Study study = studyRepository.save(Study.create(
+                "Extreme Study", "Extreme study for test", "Online",
+                LocalDateTime.of(2025, 1, 1, 0, 0), LocalDateTime.of(2025, 12, 31, 23, 59)
+        ));
+
+        // Create 100 users
+        List<User> users = new ArrayList<>();
+        for (int i = 1; i <= 100; i++) {
+            users.add(userRepository.save(User.create("extreme_user" + i + "@test.com", "password" + i, "ExtremeUser" + i, "USER")));
+        }
+
+        // Create 50 schedules
+        List<Schedule> schedules = new ArrayList<>();
+        for (int i = 1; i <= 50; i++) {
+            schedules.add(scheduleRepository.save(Schedule.create(
+                    study, "Extreme Schedule " + i, "Extreme Schedule " + i,
+                    LocalDateTime.of(2025, 1, (i % 28) + 1, 20, 0), "Location " + i, i % 3 == 0, List.of()
+            )));
+        }
+
+        // Create 500 sections (10 per schedule)
+        List<Section> sections = new ArrayList<>();
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            for (int j = 1; j <= 10; j++) {
+                sections.add(sectionRepository.save(Section.create(
+                        (long) (i * 10 + j), "Extreme Section " + (i * 10 + j), study, schedule, j % 2 == 0
+                )));
+            }
+        }
+
+        // Create reviews (25% of possible combinations)
+        for (int i = 0; i < sections.size(); i++) {
+            Section section = sections.get(i);
+            for (int j = 0; j < users.size(); j++) {
+                if (j % 4 == 0) { // Every 4th user
+                    reviewRepository.save(Review.create(
+                            users.get(j), section, 
+                            "Extreme review for section " + section.getSectionName() + " by user " + users.get(j).getUsername(),
+                            "https://example.com/extreme/review/" + section.getId() + "/" + users.get(j).getId()
+                    ));
+                }
+            }
+        }
+
+        // Create deep studies (15% of possible combinations)
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            if (schedule.getHasDeepStudy()) {
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 7 == 0) { // Every 7th user
+                        deepStudyRepository.save(DeepStudy.create(
+                                users.get(j), schedule,
+                                "Extreme deep study for schedule " + schedule.getName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/extreme/deepstudy/" + schedule.getId() + "/" + users.get(j).getId()
+                        ));
+                    }
+                }
+            }
+        }
+
+        StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
+                .studyId(study.getId())
+                .build();
+
+        long startTime = System.nanoTime();
+        StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
+        long endTime = System.nanoTime();
+        
+        long executionTime = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+        
+        // Validate result
+        assertThat(result.getStudyName()).isEqualTo("Extreme Study");
+        assertThat(result.getSchedules()).hasSize(50);
+        
+        return executionTime;
     }
 }

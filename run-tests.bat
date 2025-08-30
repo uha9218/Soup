@@ -31,3 +31,4 @@ if "%choice%"=="1" (
 echo.
 echo Test execution completed.
 pause
+
