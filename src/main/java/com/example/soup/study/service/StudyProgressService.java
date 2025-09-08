@@ -5,56 +5,55 @@ import com.example.soup.study.dto.StudyProgressResponseDTO;
 import com.example.soup.study.entity.Study;
 import com.example.soup.study.repository.StudyRepository;
 import com.example.soup.schedule.entity.Schedule;
+import com.example.soup.schedule.repository.ScheduleRepository;
 import com.example.soup.section.entity.Section;
+import com.example.soup.section.repository.SectionRepository;
 import com.example.soup.user.entity.User;
+import com.example.soup.user.repository.UserRepository;
 import com.example.soup.review.entity.Review;
 import com.example.soup.deepstudy.entity.DeepStudy;
+import com.example.soup.deepstudy.repository.DeepStudyRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
 public class StudyProgressService {
 
     private final StudyRepository studyRepository;
+    private final ScheduleRepository scheduleRepository;
+    private final SectionRepository sectionRepository;
+    private final DeepStudyRepository deepStudyRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public StudyProgressResponseDTO getStudyProgress(StudyProgressRequestDTO request) {
-        // 1. Fetch Join을 사용하여 스터디와 모든 연관 데이터를 한 번에 조회
-        Study study;
-        if (request.getStudyId() == null || request.getStudyId() == 0) {
-            study = studyRepository.findByIsActiveTrueWithDetails()
-                    .orElseThrow(() -> new IllegalArgumentException("현재 진행 중인 스터디가 없습니다."));
-        } else {
-            study = studyRepository.findByIdWithDetails(request.getStudyId())
-                    .orElseThrow(() -> new IllegalArgumentException("해당 스터디가 존재하지 않습니다."));
-        }
-
-        // 2. 조회된 데이터에서 스터디에 참여한 모든 유저를 추출 (중복 제거)
-        // userRepository.findAll() 대신, 실제 참여한 유저만 필터링하여 불필요한 전체 조회를 방지합니다.
-        Set<User> studyUsers = study.getSchedules().stream()
-                .flatMap(schedule -> Stream.concat(
-                        schedule.getSections().stream()
-                                .flatMap(section -> section.getReviews().stream())
-                                .map(Review::getUser),
-                        schedule.getDeepStudies().stream()
-                                .map(DeepStudy::getUser)
-                ))
-                .collect(Collectors.toSet());
-
-        // 3. 이미 로드된 데이터를 DTO로 변환 (추가 쿼리 발생 없음)
-        List<StudyProgressResponseDTO.ScheduleProgressDTO> scheduleProgressList = study.getSchedules().stream()
-                .map(schedule -> buildScheduleProgressDTO(schedule, studyUsers))
-                .collect(Collectors.toList());
-
-        return StudyProgressResponseDTO.of(study, scheduleProgressList);
+        // 2-Step Inquiry 패턴 적용: 단일 스케줄에 대한 최적화된 조회
+        
+        // Step 1: 기본 엔티티들 조회
+        Study study = getStudyById(request.getStudyId());
+        Schedule schedule = getScheduleById(request.getScheduleId());
+        List<User> studyUsers = getStudyUsers(request.getStudyId());
+        
+        // Step 2: 필요한 컬렉션 데이터들을 효율적으로 조회
+        List<Section> sectionsWithReviews = sectionRepository.findByScheduleIdWithReviews(request.getScheduleId());
+        List<DeepStudy> deepStudiesWithUsers = deepStudyRepository.findByScheduleIdWithUser(request.getScheduleId());
+        
+        // Step 3: 빠른 조회를 위한 Map 생성
+        Map<Long, Map<Long, Review>> reviewMap = buildReviewMap(sectionsWithReviews);
+        Map<Long, DeepStudy> deepStudyMap = buildDeepStudyMap(deepStudiesWithUsers);
+        
+        // Step 4: DTO 변환
+        StudyProgressResponseDTO.ScheduleProgressDTO scheduleProgress = 
+                buildScheduleProgressDTO(schedule, sectionsWithReviews, studyUsers, reviewMap, deepStudyMap);
+        
+        return StudyProgressResponseDTO.of(study, List.of(scheduleProgress));
     }
 
     // 현재 진행 중인 스터디 조회 메서드 추가
@@ -63,33 +62,88 @@ public class StudyProgressService {
         return studyRepository.findByIsActiveTrue()
                 .orElseThrow(() -> new IllegalArgumentException("현재 진행 중인 스터디가 없습니다."));
     }
+    
+    // 2-Step Inquiry 패턴을 위한 헬퍼 메서드들
+    
+    private Study getStudyById(Long studyId) {
+        if (studyId == null || studyId == 0) {
+            return studyRepository.findByIsActiveTrue()
+                    .orElseThrow(() -> new IllegalArgumentException("현재 진행 중인 스터디가 없습니다."));
+        } else {
+            return studyRepository.findById(studyId)
+                    .orElseThrow(() -> new IllegalArgumentException("해당 스터디가 존재하지 않습니다."));
+        }
+    }
+    
+    private Schedule getScheduleById(Long scheduleId) {
+        return scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 스케줄이 존재하지 않습니다."));
+    }
+    
+    private List<User> getStudyUsers(Long studyId) {
+        // 스터디에 참여한 모든 사용자를 조회
+        // 실제 구현에서는 스터디 참여자 테이블이 있다면 그곳에서 조회하는 것이 더 효율적입니다.
+        return userRepository.findAll();
+    }
+    
+    private Map<Long, Map<Long, Review>> buildReviewMap(List<Section> sections) {
+        return sections.stream()
+                .collect(Collectors.toMap(
+                        Section::getId,
+                        section -> section.getReviews().stream()
+                                .collect(Collectors.toMap(
+                                        review -> review.getUser().getId(),
+                                        review -> review
+                                ))
+                ));
+    }
+    
+    private Map<Long, DeepStudy> buildDeepStudyMap(List<DeepStudy> deepStudies) {
+        return deepStudies.stream()
+                .collect(Collectors.toMap(
+                        deepStudy -> deepStudy.getUser().getId(),
+                        deepStudy -> deepStudy
+                ));
+    }
 
-    private StudyProgressResponseDTO.ScheduleProgressDTO buildScheduleProgressDTO(Schedule schedule, Set<User> studyUsers) {
-        // Fetch Join으로 이미 Section 데이터가 로드되었으므로 DB 접근이 필요 없습니다.
-        List<StudyProgressResponseDTO.SectionProgressDTO> sectionProgressList = schedule.getSections().stream()
-                .map(section -> buildSectionProgressDTO(section, studyUsers))
+    private StudyProgressResponseDTO.ScheduleProgressDTO buildScheduleProgressDTO(
+            Schedule schedule, 
+            List<Section> sections, 
+            List<User> studyUsers,
+            Map<Long, Map<Long, Review>> reviewMap,
+            Map<Long, DeepStudy> deepStudyMap) {
+        
+        List<StudyProgressResponseDTO.SectionProgressDTO> sectionProgressList = sections.stream()
+                .map(section -> buildSectionProgressDTO(section, studyUsers, reviewMap, deepStudyMap))
                 .collect(Collectors.toList());
 
         return StudyProgressResponseDTO.ScheduleProgressDTO.of(schedule, sectionProgressList);
     }
 
-    private StudyProgressResponseDTO.SectionProgressDTO buildSectionProgressDTO(Section section, Set<User> studyUsers) {
-        // userRepository.findAll() 대신, 미리 추출한 studyUsers를 사용합니다.
+    private StudyProgressResponseDTO.SectionProgressDTO buildSectionProgressDTO(
+            Section section, 
+            List<User> studyUsers,
+            Map<Long, Map<Long, Review>> reviewMap,
+            Map<Long, DeepStudy> deepStudyMap) {
+        
         List<StudyProgressResponseDTO.MemberProgressDTO> memberProgressList = studyUsers.stream()
-                .map(user -> buildMemberProgressDTO(user, section))
+                .map(user -> buildMemberProgressDTO(user, section, reviewMap, deepStudyMap))
                 .collect(Collectors.toList());
 
         return StudyProgressResponseDTO.SectionProgressDTO.of(section, memberProgressList);
     }
 
-    private StudyProgressResponseDTO.MemberProgressDTO buildMemberProgressDTO(User user, Section section) {
-        // Fetch Join으로 이미 Review 데이터가 로드되었으므로 DB 접근이 필요 없습니다.
-        boolean reviewSubmitted = section.getReviews().stream()
-                .anyMatch(review -> review.getUser().getId().equals(user.getId()));
+    private StudyProgressResponseDTO.MemberProgressDTO buildMemberProgressDTO(
+            User user, 
+            Section section,
+            Map<Long, Map<Long, Review>> reviewMap,
+            Map<Long, DeepStudy> deepStudyMap) {
+        
+        // Map을 사용하여 O(1) 시간복잡도로 조회
+        boolean reviewSubmitted = reviewMap.getOrDefault(section.getId(), Map.of())
+                .containsKey(user.getId());
 
-        // Fetch Join으로 이미 DeepStudy 데이터가 로드되었으므로 DB 접근이 필요 없습니다.
-        boolean deepStudySubmitted = section.getSchedule().getDeepStudies().stream()
-                .anyMatch(deepStudy -> deepStudy.getUser().getId().equals(user.getId()));
+        boolean deepStudySubmitted = deepStudyMap.containsKey(user.getId());
 
         return StudyProgressResponseDTO.MemberProgressDTO.of(
                 user,

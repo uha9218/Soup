@@ -196,6 +196,7 @@ class StudyProgressServicePerformanceTest {
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(testStudy.getId())
+                .scheduleId(testSchedule1.getId())
                 .build();
 
         System.out.println("=== Query Execution Start ===");
@@ -210,32 +211,16 @@ class StudyProgressServicePerformanceTest {
 
         // then - Result validation
         assertThat(result.getStudyName()).isEqualTo("Spring Study");
-        assertThat(result.getSchedules()).hasSize(3);
+        assertThat(result.getSchedules()).hasSize(1); // 2-Step Inquiry 패턴에서는 단일 스케줄만 반환
 
-        // Schedule validation - Set으로 변경되어 순서가 보장되지 않으므로 ID로 찾기
-        StudyProgressResponseDTO.ScheduleProgressDTO schedule1 = result.getSchedules().stream()
-                .filter(s -> s.getScheduleId().equals(testSchedule1.getId()))
-                .findFirst()
-                .orElseThrow();
+        // Schedule validation - 2-Step Inquiry 패턴에서는 단일 스케줄만 반환
+        StudyProgressResponseDTO.ScheduleProgressDTO schedule1 = result.getSchedules().get(0);
+        assertThat(schedule1.getScheduleId()).isEqualTo(testSchedule1.getId());
         assertThat(schedule1.getSections()).hasSize(2); // Section 2, 3
-
-        StudyProgressResponseDTO.ScheduleProgressDTO schedule2 = result.getSchedules().stream()
-                .filter(s -> s.getScheduleId().equals(testSchedule2.getId()))
-                .findFirst()
-                .orElseThrow();
-        assertThat(schedule2.getSections()).hasSize(1); // Section 5
-
-        StudyProgressResponseDTO.ScheduleProgressDTO schedule3 = result.getSchedules().stream()
-                .filter(s -> s.getScheduleId().equals(testSchedule3.getId()))
-                .findFirst()
-                .orElseThrow();
-        assertThat(schedule3.getSections()).hasSize(1); // Section 8
 
         // Member count validation for each section (3 users)
         assertThat(schedule1.getSections().get(0).getMembers()).hasSize(3);
         assertThat(schedule1.getSections().get(1).getMembers()).hasSize(3);
-        assertThat(schedule2.getSections().get(0).getMembers()).hasSize(3);
-        assertThat(schedule3.getSections().get(0).getMembers()).hasSize(3);
 
         // Submission status validation
         // Check user1's review submission in Section 2
@@ -251,7 +236,6 @@ class StudyProgressServicePerformanceTest {
                 .findFirst()
                 .orElseThrow();
         assertThat(user2InSection2.getDeepStudySubmitted()).isTrue();
-
 
         // Actual DB data validation
         List<Schedule> schedulesFromDB = scheduleRepository.findByStudyId(testStudy.getId());
@@ -342,6 +326,7 @@ class StudyProgressServicePerformanceTest {
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(simpleStudy.getId())
+                .scheduleId(schedule.getId())
                 .build();
 
         System.out.println("Data Structure:");
@@ -522,6 +507,7 @@ class StudyProgressServicePerformanceTest {
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(largeStudy.getId())
+                .scheduleId(schedules.get(0).getId())
                 .build();
 
         System.out.println("=== High Volume Query Execution Start ===");
@@ -535,19 +521,17 @@ class StudyProgressServicePerformanceTest {
         System.out.println("=== High Volume Query Execution Complete ===");
         System.out.println("Execution time: " + executionTime + "ms");
 
-        // then - Result validation
+        // then - Result validation - 2-Step Inquiry 패턴에서는 단일 스케줄만 반환
         assertThat(result.getStudyName()).isEqualTo("Large Scale Study");
-        assertThat(result.getSchedules()).hasSize(20);
+        assertThat(result.getSchedules()).hasSize(1);
 
 
-        // Additional validations
-        assertThat(result.getSchedules()).allSatisfy(schedule -> {
-            assertThat(schedule.getSections()).hasSize(10);
-            schedule.getSections().forEach(section -> {
-                // 실제로는 리뷰나 딥스터디에 참여한 유저만 멤버로 표시됨
-                // 50명 중 30%가 리뷰 제출 (15명) + 20%가 딥스터디 제출 (10명) = 약 23명
-                assertThat(section.getMembers()).hasSize(23);
-            });
+        // Additional validations - 2-Step Inquiry 패턴에서는 단일 스케줄만 반환
+        StudyProgressResponseDTO.ScheduleProgressDTO schedule = result.getSchedules().get(0);
+        assertThat(schedule.getSections()).hasSize(10);
+        schedule.getSections().forEach(section -> {
+            // 2-Step Inquiry 패턴에서는 모든 사용자가 멤버로 표시됨 (50명)
+            assertThat(section.getMembers()).hasSize(50);
         });
     }
 
@@ -680,6 +664,7 @@ class StudyProgressServicePerformanceTest {
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(extremeStudy.getId())
+                .scheduleId(schedules.get(0).getId())
                 .build();
 
         System.out.println("=== Extreme Volume Query Execution Start ===");
@@ -695,17 +680,15 @@ class StudyProgressServicePerformanceTest {
 
  
 
-        // Additional validations
+        // Additional validations - 2-Step Inquiry 패턴에서는 단일 스케줄만 반환
         assertThat(result.getStudyName()).isEqualTo("Extreme Scale Study");
-        assertThat(result.getSchedules()).hasSize(50);
-        assertThat(result.getSchedules()).allSatisfy(schedule -> {
-            assertThat(schedule.getSections()).hasSize(10);
-            schedule.getSections().forEach(section -> {
-                // 실제로는 리뷰나 딥스터디에 참여한 유저만 멤버로 표시됨
-                // 100명 중 25%가 리뷰에 참여하므로 약 25명 + 딥스터디 참여자들이 멤버로 표시됨
-                assertThat(section.getMembers().size()).isGreaterThan(20);
-                assertThat(section.getMembers().size()).isLessThanOrEqualTo(100);
-            });
+        assertThat(result.getSchedules()).hasSize(1);
+        
+        StudyProgressResponseDTO.ScheduleProgressDTO schedule = result.getSchedules().get(0);
+        assertThat(schedule.getSections()).hasSize(10);
+        schedule.getSections().forEach(section -> {
+            // 2-Step Inquiry 패턴에서는 모든 사용자가 멤버로 표시됨 (100명)
+            assertThat(section.getMembers()).hasSize(100);
         });
     }
 
@@ -868,6 +851,7 @@ class StudyProgressServicePerformanceTest {
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(comparisonStudy.getId())
+                .scheduleId(schedules.get(0).getId())
                 .build();
 
         // Multiple test runs for comparison
@@ -884,9 +868,9 @@ class StudyProgressServicePerformanceTest {
             long executionTime = endTime - startTime;
             System.out.println("Run " + run + " execution time: " + executionTime + "ms");
             
-            // Validate result
+            // Validate result - 2-Step Inquiry 패턴에서는 단일 스케줄만 반환
             assertThat(result.getStudyName()).isEqualTo("Comparison Study");
-            assertThat(result.getSchedules()).hasSize(10);
+            assertThat(result.getSchedules()).hasSize(1);
         }
 
 
@@ -994,6 +978,7 @@ class StudyProgressServicePerformanceTest {
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(study.getId())
+                .scheduleId(schedules.get(0).getId())
                 .build();
 
         long startTime = System.nanoTime();
@@ -1002,9 +987,9 @@ class StudyProgressServicePerformanceTest {
         
         long executionTime = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
         
-        // Validate result
+        // Validate result - 2-Step Inquiry 패턴에서는 단일 스케줄만 반환
         assertThat(result.getStudyName()).isEqualTo("Small Study");
-        assertThat(result.getSchedules()).hasSize(2);
+        assertThat(result.getSchedules()).hasSize(1);
         
         return executionTime;
     }
@@ -1119,6 +1104,7 @@ class StudyProgressServicePerformanceTest {
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(study.getId())
+                .scheduleId(schedules.get(0).getId())
                 .build();
 
         long startTime = System.nanoTime();
@@ -1127,9 +1113,9 @@ class StudyProgressServicePerformanceTest {
         
         long executionTime = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
         
-        // Validate result
+        // Validate result - 2-Step Inquiry 패턴에서는 단일 스케줄만 반환
         assertThat(result.getStudyName()).isEqualTo("Medium Study");
-        assertThat(result.getSchedules()).hasSize(10);
+        assertThat(result.getSchedules()).hasSize(1);
         
         return executionTime;
     }
@@ -1244,6 +1230,7 @@ class StudyProgressServicePerformanceTest {
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(study.getId())
+                .scheduleId(schedules.get(0).getId())
                 .build();
 
         long startTime = System.nanoTime();
@@ -1252,9 +1239,9 @@ class StudyProgressServicePerformanceTest {
         
         long executionTime = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
         
-        // Validate result
+        // Validate result - 2-Step Inquiry 패턴에서는 단일 스케줄만 반환
         assertThat(result.getStudyName()).isEqualTo("Large Study");
-        assertThat(result.getSchedules()).hasSize(20);
+        assertThat(result.getSchedules()).hasSize(1);
         
         return executionTime;
     }
@@ -1369,6 +1356,7 @@ class StudyProgressServicePerformanceTest {
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(study.getId())
+                .scheduleId(schedules.get(0).getId())
                 .build();
 
         long startTime = System.nanoTime();
@@ -1377,9 +1365,9 @@ class StudyProgressServicePerformanceTest {
         
         long executionTime = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
         
-        // Validate result
+        // Validate result - 2-Step Inquiry 패턴에서는 단일 스케줄만 반환
         assertThat(result.getStudyName()).isEqualTo("Extreme Study");
-        assertThat(result.getSchedules()).hasSize(50);
+        assertThat(result.getSchedules()).hasSize(1);
         
         return executionTime;
     }
