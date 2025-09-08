@@ -6,15 +6,10 @@ import com.example.soup.study.entity.Study;
 import com.example.soup.study.repository.StudyRepository;
 import com.example.soup.study.service.StudyProgressService;
 import com.example.soup.schedule.entity.Schedule;
-import com.example.soup.schedule.repository.ScheduleRepository;
 import com.example.soup.section.entity.Section;
-import com.example.soup.section.repository.SectionRepository;
 import com.example.soup.user.entity.User;
-import com.example.soup.user.repository.UserRepository;
 import com.example.soup.review.entity.Review;
-import com.example.soup.review.repository.ReviewRepository;
 import com.example.soup.deepstudy.entity.DeepStudy;
-import com.example.soup.deepstudy.repository.DeepStudyRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,8 +18,10 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -32,30 +29,12 @@ import static org.mockito.Mockito.*;
 class StudyProgressServiceUnitTest {
 
     private StudyRepository studyRepository;
-    private ScheduleRepository scheduleRepository;
-    private SectionRepository sectionRepository;
-    private UserRepository userRepository;
-    private ReviewRepository reviewRepository;
-    private DeepStudyRepository deepStudyRepository;
     private StudyProgressService studyProgressService;
 
     @BeforeEach
     void setUp() {
         studyRepository = mock(StudyRepository.class);
-        scheduleRepository = mock(ScheduleRepository.class);
-        sectionRepository = mock(SectionRepository.class);
-        userRepository = mock(UserRepository.class);
-        reviewRepository = mock(ReviewRepository.class);
-        deepStudyRepository = mock(DeepStudyRepository.class);
-        
-        studyProgressService = new StudyProgressService(
-                studyRepository,
-                scheduleRepository,
-                sectionRepository,
-                userRepository,
-                reviewRepository,
-                deepStudyRepository
-        );
+        studyProgressService = new StudyProgressService(studyRepository);
     }
 
     @Test
@@ -71,7 +50,6 @@ class StudyProgressServiceUnitTest {
         Study study = mock(Study.class);
         when(study.getId()).thenReturn(studyId);
         when(study.getName()).thenReturn("Spring Study");
-        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
 
         // 스케줄 mock
         Schedule schedule1 = mock(Schedule.class);
@@ -89,9 +67,6 @@ class StudyProgressServiceUnitTest {
         when(schedule2.getScheduleDate()).thenReturn(LocalDateTime.of(2025, 1, 22, 20, 0));
         when(schedule2.getMeetingLocation()).thenReturn("강남역");
         when(schedule2.getHasDeepStudy()).thenReturn(false);
-
-        when(scheduleRepository.findByStudyId(studyId))
-                .thenReturn(Arrays.asList(schedule1, schedule2));
 
         // 섹션 mock
         Section section1 = mock(Section.class);
@@ -115,11 +90,6 @@ class StudyProgressServiceUnitTest {
         when(section3.getNeedsReview()).thenReturn(false);
         when(section3.getSchedule()).thenReturn(schedule2);
 
-        when(sectionRepository.findByScheduleId(10L))
-                .thenReturn(Arrays.asList(section1, section2));
-        when(sectionRepository.findByScheduleId(20L))
-                .thenReturn(Arrays.asList(section3));
-
         // 사용자 mock
         User user1 = mock(User.class);
         when(user1.getId()).thenReturn(1000L);
@@ -129,26 +99,27 @@ class StudyProgressServiceUnitTest {
         when(user2.getId()).thenReturn(2000L);
         when(user2.getUsername()).thenReturn("이영희");
 
-        when(userRepository.findAll())
-                .thenReturn(Arrays.asList(user1, user2));
-
         // 회고 mock
         Review review1 = mock(Review.class);
         when(review1.getUser()).thenReturn(user1);
-        when(reviewRepository.findBySectionId(100L))
-                .thenReturn(Arrays.asList(review1));
-        when(reviewRepository.findBySectionId(200L))
-                .thenReturn(Collections.emptyList());
-        when(reviewRepository.findBySectionId(300L))
-                .thenReturn(Collections.emptyList());
+        when(review1.getSection()).thenReturn(section1);
 
         // 심화학습 mock
         DeepStudy deepStudy1 = mock(DeepStudy.class);
         when(deepStudy1.getUser()).thenReturn(user2);
-        when(deepStudyRepository.findByScheduleId(10L))
-                .thenReturn(Arrays.asList(deepStudy1));
-        when(deepStudyRepository.findByScheduleId(20L))
-                .thenReturn(Collections.emptyList());
+        when(deepStudy1.getSchedule()).thenReturn(schedule1);
+
+        // Fetch Join으로 로드된 데이터 설정
+        when(study.getSchedules()).thenReturn(new HashSet<>(Arrays.asList(schedule1, schedule2)));
+        when(schedule1.getSections()).thenReturn(Arrays.asList(section1, section2));
+        when(schedule2.getSections()).thenReturn(Arrays.asList(section3));
+        when(section1.getReviews()).thenReturn(new HashSet<>(Arrays.asList(review1)));
+        when(section2.getReviews()).thenReturn(Collections.emptySet());
+        when(section3.getReviews()).thenReturn(Collections.emptySet());
+        when(schedule1.getDeepStudies()).thenReturn(new HashSet<>(Arrays.asList(deepStudy1)));
+        when(schedule2.getDeepStudies()).thenReturn(Collections.emptySet());
+
+        when(studyRepository.findByIdWithDetails(studyId)).thenReturn(Optional.of(study));
 
         // when
         StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
@@ -156,10 +127,12 @@ class StudyProgressServiceUnitTest {
         // then
         assertThat(result.getStudyName()).isEqualTo("Spring Study");
         assertThat(result.getSchedules()).hasSize(2);
-
-        // 첫 번째 스케줄 검증
-        StudyProgressResponseDTO.ScheduleProgressDTO firstSchedule = result.getSchedules().get(0);
-        assertThat(firstSchedule.getScheduleId()).isEqualTo(10L);
+        
+        // 스케줄 ID로 찾아서 검증
+        StudyProgressResponseDTO.ScheduleProgressDTO firstSchedule = result.getSchedules().stream()
+                .filter(s -> s.getScheduleId().equals(10L))
+                .findFirst()
+                .orElseThrow();
         assertThat(firstSchedule.getScheduleName()).isEqualTo("Section 2~4");
         assertThat(firstSchedule.getScheduleDate()).isEqualTo("2025-01-15");
         assertThat(firstSchedule.getScheduleTime()).isEqualTo("20:00");
@@ -168,9 +141,10 @@ class StudyProgressServiceUnitTest {
         assertThat(firstSchedule.getHasDeepStudy()).isTrue();
         assertThat(firstSchedule.getSections()).hasSize(2);
 
-        // 두 번째 스케줄 검증
-        StudyProgressResponseDTO.ScheduleProgressDTO secondSchedule = result.getSchedules().get(1);
-        assertThat(secondSchedule.getScheduleId()).isEqualTo(20L);
+        StudyProgressResponseDTO.ScheduleProgressDTO secondSchedule = result.getSchedules().stream()
+                .filter(s -> s.getScheduleId().equals(20L))
+                .findFirst()
+                .orElseThrow();
         assertThat(secondSchedule.getScheduleName()).isEqualTo("Section 5~7");
         assertThat(secondSchedule.getScheduleDate()).isEqualTo("2025-01-22");
         assertThat(secondSchedule.getScheduleTime()).isEqualTo("20:00");
@@ -179,16 +153,8 @@ class StudyProgressServiceUnitTest {
         assertThat(secondSchedule.getHasDeepStudy()).isFalse();
         assertThat(secondSchedule.getSections()).hasSize(1);
 
-        // Repository 호출 검증
-        verify(studyRepository).findById(studyId);
-        verify(scheduleRepository).findByStudyId(studyId);
-        verify(sectionRepository).findByScheduleId(10L);
-        verify(sectionRepository).findByScheduleId(20L);
-        verify(userRepository, times(3)).findAll(); // 섹션 3개에 대해 호출
-        verify(reviewRepository, times(2)).findBySectionId(100L); // 섹션당 사용자 수만큼 호출 (2명)
-        verify(reviewRepository, times(2)).findBySectionId(200L); // 섹션당 사용자 수만큼 호출 (2명)
-        verify(reviewRepository, times(2)).findBySectionId(300L); // 섹션당 사용자 수만큼 호출 (2명)
-        verify(deepStudyRepository, times(6)).findByScheduleId(anyLong()); // 섹션 3개 x 사용자 2명 = 6번 호출
+        // Repository 호출 검증 - Fetch Join으로 단일 호출만 발생
+        verify(studyRepository).findByIdWithDetails(studyId);
     }
 
     @Test
@@ -203,8 +169,8 @@ class StudyProgressServiceUnitTest {
         Study study = mock(Study.class);
         when(study.getId()).thenReturn(studyId);
         when(study.getName()).thenReturn("Empty Study");
-        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
-        when(scheduleRepository.findByStudyId(studyId)).thenReturn(Collections.emptyList());
+        when(study.getSchedules()).thenReturn(Collections.emptySet());
+        when(studyRepository.findByIdWithDetails(studyId)).thenReturn(Optional.of(study));
 
         // when
         StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
@@ -213,12 +179,7 @@ class StudyProgressServiceUnitTest {
         assertThat(result.getStudyName()).isEqualTo("Empty Study");
         assertThat(result.getSchedules()).isEmpty();
 
-        verify(studyRepository).findById(studyId);
-        verify(scheduleRepository).findByStudyId(studyId);
-        verify(sectionRepository, never()).findByScheduleId(anyLong());
-        verify(userRepository, never()).findAll();
-        verify(reviewRepository, never()).findBySectionId(anyLong());
-        verify(deepStudyRepository, never()).findByScheduleId(anyLong());
+        verify(studyRepository).findByIdWithDetails(studyId);
     }
 
     @Test
@@ -230,19 +191,14 @@ class StudyProgressServiceUnitTest {
                 .studyId(invalidStudyId)
                 .build();
 
-        when(studyRepository.findById(invalidStudyId)).thenReturn(Optional.empty());
+        when(studyRepository.findByIdWithDetails(invalidStudyId)).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> studyProgressService.getStudyProgress(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("해당 스터디가 존재하지 않습니다.");
 
-        verify(studyRepository).findById(invalidStudyId);
-        verify(scheduleRepository, never()).findByStudyId(anyLong());
-        verify(sectionRepository, never()).findByScheduleId(anyLong());
-        verify(userRepository, never()).findAll();
-        verify(reviewRepository, never()).findBySectionId(anyLong());
-        verify(deepStudyRepository, never()).findByScheduleId(anyLong());
+        verify(studyRepository).findByIdWithDetails(invalidStudyId);
     }
 
     @Test
@@ -257,7 +213,6 @@ class StudyProgressServiceUnitTest {
         Study study = mock(Study.class);
         when(study.getId()).thenReturn(studyId);
         when(study.getName()).thenReturn("Test Study");
-        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
 
         Schedule schedule = mock(Schedule.class);
         when(schedule.getId()).thenReturn(10L);
@@ -266,9 +221,11 @@ class StudyProgressServiceUnitTest {
         when(schedule.getScheduleDate()).thenReturn(LocalDateTime.of(2025, 1, 15, 20, 0));
         when(schedule.getMeetingLocation()).thenReturn("온라인");
         when(schedule.getHasDeepStudy()).thenReturn(false);
+        when(schedule.getSections()).thenReturn(Collections.emptyList());
+        when(schedule.getDeepStudies()).thenReturn(Collections.emptySet());
 
-        when(scheduleRepository.findByStudyId(studyId)).thenReturn(Arrays.asList(schedule));
-        when(sectionRepository.findByScheduleId(10L)).thenReturn(Collections.emptyList());
+        when(study.getSchedules()).thenReturn(new HashSet<>(Arrays.asList(schedule)));
+        when(studyRepository.findByIdWithDetails(studyId)).thenReturn(Optional.of(study));
 
         // when
         StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
@@ -278,12 +235,7 @@ class StudyProgressServiceUnitTest {
         assertThat(result.getSchedules()).hasSize(1);
         assertThat(result.getSchedules().get(0).getSections()).isEmpty();
 
-        verify(studyRepository).findById(studyId);
-        verify(scheduleRepository).findByStudyId(studyId);
-        verify(sectionRepository).findByScheduleId(10L);
-        verify(userRepository, never()).findAll();
-        verify(reviewRepository, never()).findBySectionId(anyLong());
-        verify(deepStudyRepository, never()).findByScheduleId(anyLong());
+        verify(studyRepository).findByIdWithDetails(studyId);
     }
 
     @Test
@@ -298,7 +250,6 @@ class StudyProgressServiceUnitTest {
         Study study = mock(Study.class);
         when(study.getId()).thenReturn(studyId);
         when(study.getName()).thenReturn("Test Study");
-        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
 
         Schedule schedule = mock(Schedule.class);
         when(schedule.getId()).thenReturn(10L);
@@ -308,16 +259,12 @@ class StudyProgressServiceUnitTest {
         when(schedule.getMeetingLocation()).thenReturn("온라인");
         when(schedule.getHasDeepStudy()).thenReturn(true);
 
-        when(scheduleRepository.findByStudyId(studyId)).thenReturn(Arrays.asList(schedule));
-
         Section section = mock(Section.class);
         when(section.getId()).thenReturn(100L);
         when(section.getSectionName()).thenReturn("Test Section");
         when(section.getSectionNumber()).thenReturn(1L);
         when(section.getNeedsReview()).thenReturn(true);
         when(section.getSchedule()).thenReturn(schedule);
-
-        when(sectionRepository.findByScheduleId(10L)).thenReturn(Arrays.asList(section));
 
         User user1 = mock(User.class);
         when(user1.getId()).thenReturn(1000L);
@@ -327,16 +274,22 @@ class StudyProgressServiceUnitTest {
         when(user2.getId()).thenReturn(2000L);
         when(user2.getUsername()).thenReturn("이영희");
 
-        when(userRepository.findAll()).thenReturn(Arrays.asList(user1, user2));
-
         // user1은 회고 제출, user2는 심화학습 제출
         Review review = mock(Review.class);
         when(review.getUser()).thenReturn(user1);
-        when(reviewRepository.findBySectionId(100L)).thenReturn(Arrays.asList(review));
+        when(review.getSection()).thenReturn(section);
 
         DeepStudy deepStudy = mock(DeepStudy.class);
         when(deepStudy.getUser()).thenReturn(user2);
-        when(deepStudyRepository.findByScheduleId(10L)).thenReturn(Arrays.asList(deepStudy));
+        when(deepStudy.getSchedule()).thenReturn(schedule);
+
+        // Fetch Join으로 로드된 데이터 설정
+        when(study.getSchedules()).thenReturn(new HashSet<>(Arrays.asList(schedule)));
+        when(schedule.getSections()).thenReturn(Arrays.asList(section));
+        when(schedule.getDeepStudies()).thenReturn(new HashSet<>(Arrays.asList(deepStudy)));
+        when(section.getReviews()).thenReturn(new HashSet<>(Arrays.asList(review)));
+
+        when(studyRepository.findByIdWithDetails(studyId)).thenReturn(Optional.of(study));
 
         // when
         StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
@@ -360,6 +313,9 @@ class StudyProgressServiceUnitTest {
                 .orElseThrow();
         assertThat(member2.getReviewSubmitted()).isFalse();
         assertThat(member2.getDeepStudySubmitted()).isTrue();
+        
+        // verify
+        verify(studyRepository).findByIdWithDetails(studyId);
     }
 
     @Test
@@ -374,7 +330,6 @@ class StudyProgressServiceUnitTest {
         Study study = mock(Study.class);
         when(study.getId()).thenReturn(1L);
         when(study.getName()).thenReturn("Spring Study");
-        when(studyRepository.findByIsActiveTrue()).thenReturn(Optional.of(study));
 
         // 스케줄 mock
         Schedule schedule = mock(Schedule.class);
@@ -385,9 +340,6 @@ class StudyProgressServiceUnitTest {
         when(schedule.getMeetingLocation()).thenReturn("온라인");
         when(schedule.getHasDeepStudy()).thenReturn(true);
 
-        when(scheduleRepository.findByStudyId(1L))
-                .thenReturn(Collections.singletonList(schedule));
-
         // 섹션 mock
         Section section = mock(Section.class);
         when(section.getId()).thenReturn(100L);
@@ -396,30 +348,28 @@ class StudyProgressServiceUnitTest {
         when(section.getNeedsReview()).thenReturn(true);
         when(section.getSchedule()).thenReturn(schedule);
 
-        when(sectionRepository.findByScheduleId(10L))
-                .thenReturn(Collections.singletonList(section));
-
         // 사용자 mock
         User user = mock(User.class);
         when(user.getId()).thenReturn(1L);
         when(user.getUsername()).thenReturn("김철수");
 
-        when(userRepository.findAll())
-                .thenReturn(Collections.singletonList(user));
-
         // 회고 mock
         Review review = mock(Review.class);
         when(review.getUser()).thenReturn(user);
-
-        when(reviewRepository.findBySectionId(100L))
-                .thenReturn(Collections.singletonList(review));
+        when(review.getSection()).thenReturn(section);
 
         // 심화학습 mock
         DeepStudy deepStudy = mock(DeepStudy.class);
         when(deepStudy.getUser()).thenReturn(user);
+        when(deepStudy.getSchedule()).thenReturn(schedule);
 
-        when(deepStudyRepository.findByScheduleId(10L))
-                .thenReturn(Collections.singletonList(deepStudy));
+        // Fetch Join으로 로드된 데이터 설정
+        when(study.getSchedules()).thenReturn(Collections.singleton(schedule));
+        when(schedule.getSections()).thenReturn(Collections.singletonList(section));
+        when(schedule.getDeepStudies()).thenReturn(Collections.singleton(deepStudy));
+        when(section.getReviews()).thenReturn(Collections.singleton(review));
+
+        when(studyRepository.findByIsActiveTrueWithDetails()).thenReturn(Optional.of(study));
 
         // when
         StudyProgressResponseDTO result = studyProgressService.getStudyProgress(request);
@@ -447,8 +397,7 @@ class StudyProgressServiceUnitTest {
         assertThat(memberProgress.getDeepStudySubmitted()).isTrue();
 
         // verify
-        verify(studyRepository).findByIsActiveTrue();
-        verify(studyRepository, never()).findById(any());
+        verify(studyRepository).findByIsActiveTrueWithDetails();
     }
 
     @Test
@@ -459,7 +408,7 @@ class StudyProgressServiceUnitTest {
                 .studyId(null)
                 .build();
 
-        when(studyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
+        when(studyRepository.findByIsActiveTrueWithDetails()).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> studyProgressService.getStudyProgress(request))

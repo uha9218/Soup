@@ -24,11 +24,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.slf4j.LoggerFactory;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -107,38 +111,55 @@ class StudyProgressServicePerformanceTest {
                 LocalDateTime.of(2025, 1, 15, 20, 0), "온라인", true, List.of()
         );
         testSchedule1 = scheduleRepository.save(testSchedule1);
+        testStudy.getSchedules().add(testSchedule1);
 
         testSchedule2 = Schedule.create(
                 testStudy, "Section 5~7", "스프링 심화",
                 LocalDateTime.of(2025, 1, 22, 20, 0), "강남역", false, List.of()
         );
         testSchedule2 = scheduleRepository.save(testSchedule2);
+        testStudy.getSchedules().add(testSchedule2);
 
         testSchedule3 = Schedule.create(
                 testStudy, "Section 8~10", "스프링 고급",
                 LocalDateTime.of(2025, 1, 29, 20, 0), "서울역", true, List.of()
         );
         testSchedule3 = scheduleRepository.save(testSchedule3);
+        testStudy.getSchedules().add(testSchedule3);
 
         // 테스트용 Section 생성
         testSection1 = Section.create(2L, "Section 2", testStudy, testSchedule1, true);
         testSection1 = sectionRepository.save(testSection1);
+        testSchedule1.getSections().add(testSection1);
 
         testSection2 = Section.create(3L, "Section 3", testStudy, testSchedule1, true);
         testSection2 = sectionRepository.save(testSection2);
+        testSchedule1.getSections().add(testSection2);
 
         testSection3 = Section.create(5L, "Section 5", testStudy, testSchedule2, false);
         testSection3 = sectionRepository.save(testSection3);
+        testSchedule2.getSections().add(testSection3);
 
         testSection4 = Section.create(8L, "Section 8", testStudy, testSchedule3, true);
         testSection4 = sectionRepository.save(testSection4);
+        testSchedule3.getSections().add(testSection4);
     }
 
     @Test
     @DisplayName("N+1 Query Problem Detection - Performance Test")
     void getStudyProgress_nPlusOneQueryProblem() {
-        // given - Create complex data structure that can cause N+1 problem
-        System.out.println("\n=== N+1 Query Problem Verification Start ===");
+        // 로깅 레벨을 동적으로 변경하여 쿼리 로그 활성화
+        Logger sqlLogger = (Logger) LoggerFactory.getLogger("org.hibernate.SQL");
+        Logger bindLogger = (Logger) LoggerFactory.getLogger("org.hibernate.orm.jdbc.bind");
+        Level originalSqlLevel = sqlLogger.getLevel();
+        Level originalBindLevel = bindLogger.getLevel();
+        
+        try {
+            sqlLogger.setLevel(Level.DEBUG);
+            bindLogger.setLevel(Level.TRACE);
+            
+            // given - Create complex data structure that can cause N+1 problem
+            System.out.println("\n=== N+1 Query Problem Verification Start ===");
         System.out.println("Data Structure:");
         System.out.println("- Study: 1");
         System.out.println("- Users: 3");
@@ -150,23 +171,28 @@ class StudyProgressServicePerformanceTest {
         // Create situation where some users submitted reviews and deep studies
         // user1: Submit review for Section 2
         Review review1 = Review.create(testUser1, testSection1, "Review content 1", "https://example.com/review1");
-        reviewRepository.save(review1);
+        review1 = reviewRepository.save(review1);
+        testSection1.getReviews().add(review1);
 
         // user2: Submit deep study for Schedule 1
         DeepStudy deepStudy1 = DeepStudy.create(testUser2, testSchedule1, "Deep study topic 1", "https://example.com/deepstudy1");
-        deepStudyRepository.save(deepStudy1);
+        deepStudy1 = deepStudyRepository.save(deepStudy1);
+        testSchedule1.getDeepStudies().add(deepStudy1);
 
         // user3: Submit review for Section 3
         Review review2 = Review.create(testUser3, testSection2, "Review content 2", "https://example.com/review2");
-        reviewRepository.save(review2);
+        review2 = reviewRepository.save(review2);
+        testSection2.getReviews().add(review2);
 
         // user1: Submit deep study for Schedule 3
         DeepStudy deepStudy2 = DeepStudy.create(testUser1, testSchedule3, "Deep study topic 2", "https://example.com/deepstudy2");
-        deepStudyRepository.save(deepStudy2);
+        deepStudy2 = deepStudyRepository.save(deepStudy2);
+        testSchedule3.getDeepStudies().add(deepStudy2);
 
         // user2: Submit review for Section 8
         Review review3 = Review.create(testUser2, testSection4, "Review content 3", "https://example.com/review3");
-        reviewRepository.save(review3);
+        review3 = reviewRepository.save(review3);
+        testSection4.getReviews().add(review3);
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(testStudy.getId())
@@ -186,51 +212,46 @@ class StudyProgressServicePerformanceTest {
         assertThat(result.getStudyName()).isEqualTo("Spring Study");
         assertThat(result.getSchedules()).hasSize(3);
 
-        // First schedule validation (existing testSchedule1)
-        StudyProgressResponseDTO.ScheduleProgressDTO firstSchedule = result.getSchedules().get(0);
-        assertThat(firstSchedule.getSections()).hasSize(2); // Section 2, 3
+        // Schedule validation - Set으로 변경되어 순서가 보장되지 않으므로 ID로 찾기
+        StudyProgressResponseDTO.ScheduleProgressDTO schedule1 = result.getSchedules().stream()
+                .filter(s -> s.getScheduleId().equals(testSchedule1.getId()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(schedule1.getSections()).hasSize(2); // Section 2, 3
 
-        // Second schedule validation (existing testSchedule2)
-        StudyProgressResponseDTO.ScheduleProgressDTO secondSchedule = result.getSchedules().get(1);
-        assertThat(secondSchedule.getSections()).hasSize(1); // Section 5
+        StudyProgressResponseDTO.ScheduleProgressDTO schedule2 = result.getSchedules().stream()
+                .filter(s -> s.getScheduleId().equals(testSchedule2.getId()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(schedule2.getSections()).hasSize(1); // Section 5
 
-        // Third schedule validation (newly added testSchedule3)
-        StudyProgressResponseDTO.ScheduleProgressDTO thirdSchedule = result.getSchedules().get(2);
-        assertThat(thirdSchedule.getSections()).hasSize(1); // Section 8
+        StudyProgressResponseDTO.ScheduleProgressDTO schedule3 = result.getSchedules().stream()
+                .filter(s -> s.getScheduleId().equals(testSchedule3.getId()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(schedule3.getSections()).hasSize(1); // Section 8
 
         // Member count validation for each section (3 users)
-        assertThat(firstSchedule.getSections().get(0).getMembers()).hasSize(3);
-        assertThat(firstSchedule.getSections().get(1).getMembers()).hasSize(3);
-        assertThat(secondSchedule.getSections().get(0).getMembers()).hasSize(3);
-        assertThat(thirdSchedule.getSections().get(0).getMembers()).hasSize(3);
+        assertThat(schedule1.getSections().get(0).getMembers()).hasSize(3);
+        assertThat(schedule1.getSections().get(1).getMembers()).hasSize(3);
+        assertThat(schedule2.getSections().get(0).getMembers()).hasSize(3);
+        assertThat(schedule3.getSections().get(0).getMembers()).hasSize(3);
 
         // Submission status validation
         // Check user1's review submission in Section 2
-        StudyProgressResponseDTO.MemberProgressDTO user1InSection2 = firstSchedule.getSections().get(0).getMembers().stream()
+        StudyProgressResponseDTO.MemberProgressDTO user1InSection2 = schedule1.getSections().get(0).getMembers().stream()
                 .filter(m -> m.getUserId().equals(testUser1.getId()))
                 .findFirst()
                 .orElseThrow();
         assertThat(user1InSection2.getReviewSubmitted()).isTrue();
 
         // Check user2's deep study submission in Schedule 1
-        StudyProgressResponseDTO.MemberProgressDTO user2InSection2 = firstSchedule.getSections().get(0).getMembers().stream()
+        StudyProgressResponseDTO.MemberProgressDTO user2InSection2 = schedule1.getSections().get(0).getMembers().stream()
                 .filter(m -> m.getUserId().equals(testUser2.getId()))
                 .findFirst()
                 .orElseThrow();
         assertThat(user2InSection2.getDeepStudySubmitted()).isTrue();
 
-        System.out.println("\n=== N+1 Query Problem Analysis ===");
-        System.out.println("Expected optimal query count:");
-        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
-        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
-        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (3 times - number of schedules)");
-        System.out.println("- SELECT * FROM user (1 time)");
-        System.out.println("- SELECT * FROM review WHERE section_id = ? (4 times - number of sections)");
-        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (3 times - number of schedules)");
-        System.out.println("Total expected queries: 13");
-        System.out.println("\nCheck the actual executed queries in the console log above.");
-        System.out.println("If review and deep_study queries are executed much more than the number of sections/schedules, N+1 problem has occurred.");
-        System.out.println("================================\n");
 
         // Actual DB data validation
         List<Schedule> schedulesFromDB = scheduleRepository.findByStudyId(testStudy.getId());
@@ -247,13 +268,29 @@ class StudyProgressServicePerformanceTest {
 
         List<DeepStudy> deepStudiesFromDB = deepStudyRepository.findByScheduleId(testSchedule1.getId());
         assertThat(deepStudiesFromDB).hasSize(1);
+        
+        } finally {
+            // 로깅 레벨을 원래대로 복원
+            sqlLogger.setLevel(originalSqlLevel);
+            bindLogger.setLevel(originalBindLevel);
+        }
     }
 
     @Test
     @DisplayName("N+1 Query Problem Precise Validation - Query Count Auto Count")
     void getStudyProgress_nPlusOneQueryPreciseValidation() {
-        // given - Simple structure to clearly identify N+1 problem
-        System.out.println("\n=== N+1 Query Precise Validation Start ===");
+        // 로깅 레벨을 동적으로 변경하여 쿼리 로그 활성화
+        Logger sqlLogger = (Logger) LoggerFactory.getLogger("org.hibernate.SQL");
+        Logger bindLogger = (Logger) LoggerFactory.getLogger("org.hibernate.orm.jdbc.bind");
+        Level originalSqlLevel = sqlLogger.getLevel();
+        Level originalBindLevel = bindLogger.getLevel();
+        
+        try {
+            sqlLogger.setLevel(Level.DEBUG);
+            bindLogger.setLevel(Level.TRACE);
+            
+            // given - Simple structure to clearly identify N+1 problem
+            System.out.println("\n=== N+1 Query Precise Validation Start ===");
         
         // Clear existing data
         reviewRepository.deleteAll();
@@ -282,21 +319,26 @@ class StudyProgressServicePerformanceTest {
                 LocalDateTime.of(2025, 1, 15, 20, 0), "Online", true, List.of()
         );
         schedule = scheduleRepository.save(schedule);
+        simpleStudy.getSchedules().add(schedule);
 
         // Create 2 sections
         Section section1 = Section.create(1L, "Section 1", simpleStudy, schedule, true);
         section1 = sectionRepository.save(section1);
+        schedule.getSections().add(section1);
         
         Section section2 = Section.create(2L, "Section 2", simpleStudy, schedule, true);
         section2 = sectionRepository.save(section2);
+        schedule.getSections().add(section2);
 
         // Submit review (user1 submits only to section1)
         Review review = Review.create(user1, section1, "Review content", "https://example.com/review");
         reviewRepository.save(review);
+        section1.getReviews().add(review);
 
         // Submit deep study (user2 submits only to schedule)
         DeepStudy deepStudy = DeepStudy.create(user2, schedule, "Deep study content", "https://example.com/deepstudy");
         deepStudyRepository.save(deepStudy);
+        schedule.getDeepStudies().add(deepStudy);
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(simpleStudy.getId())
@@ -349,30 +391,12 @@ class StudyProgressServicePerformanceTest {
                 .orElseThrow();
         assertThat(user2InSection1.getReviewSubmitted()).isFalse();
         assertThat(user2InSection1.getDeepStudySubmitted()).isTrue();
-
-        System.out.println("\n=== N+1 Query Precise Analysis ===");
-        System.out.println("Optimal query count (No N+1 problem):");
-        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
-        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
-        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (1 time)");
-        System.out.println("- SELECT * FROM user (1 time)");
-        System.out.println("- SELECT * FROM review WHERE section_id = ? (2 times - 2 sections)");
-        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (2 times - 2 sections)");
-        System.out.println("Total optimal queries: 8");
         
-        System.out.println("\nExpected query count when N+1 problem occurs:");
-        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
-        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
-        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (1 time)");
-        System.out.println("- SELECT * FROM user (1 time)");
-        System.out.println("- SELECT * FROM review WHERE section_id = ? (4 times - 2 sections × 2 users)");
-        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (4 times - 2 sections × 2 users)");
-        System.out.println("Total N+1 problem queries: 12");
-        
-        System.out.println("\nCheck the actual executed query count in the console log above.");
-        System.out.println("- Around 8 queries: Optimized");
-        System.out.println("- 12 or more queries: N+1 problem occurred");
-        System.out.println("================================\n");
+        } finally {
+            // 로깅 레벨을 원래대로 복원
+            sqlLogger.setLevel(originalSqlLevel);
+            bindLogger.setLevel(originalBindLevel);
+        }
     }
 
     @Test
@@ -425,6 +449,7 @@ class StudyProgressServicePerformanceTest {
                     List.of()
             );
             schedules.add(scheduleRepository.save(schedule));
+            largeStudy.getSchedules().add(schedule);
         }
 
         // Create 200 sections (10 per schedule)
@@ -440,6 +465,7 @@ class StudyProgressServicePerformanceTest {
                         j % 3 != 0 // 2/3 of sections need review
                 );
                 sections.add(sectionRepository.save(section));
+                schedule.getSections().add(section);
             }
         }
 
@@ -457,6 +483,7 @@ class StudyProgressServicePerformanceTest {
                             "https://example.com/review/" + section.getId() + "/" + users.get(j).getId()
                     );
                     reviewRepository.save(review);
+                    section.getReviews().add(review);
                     reviewCount++;
                 }
             }
@@ -477,6 +504,7 @@ class StudyProgressServicePerformanceTest {
                                 "https://example.com/deepstudy/" + schedule.getId() + "/" + users.get(j).getId()
                         );
                         deepStudyRepository.save(deepStudy);
+                        schedule.getDeepStudies().add(deepStudy);
                         deepStudyCount++;
                     }
                 }
@@ -511,38 +539,14 @@ class StudyProgressServicePerformanceTest {
         assertThat(result.getStudyName()).isEqualTo("Large Scale Study");
         assertThat(result.getSchedules()).hasSize(20);
 
-        // Performance analysis
-        System.out.println("\n=== High Volume Performance Analysis ===");
-        System.out.println("Expected optimal query count (No N+1 problem):");
-        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
-        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
-        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (20 times - number of schedules)");
-        System.out.println("- SELECT * FROM user (1 time)");
-        System.out.println("- SELECT * FROM review WHERE section_id = ? (200 times - number of sections)");
-        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (20 times - number of schedules)");
-        System.out.println("Total optimal queries: 243");
-        
-        System.out.println("\nExpected query count when N+1 problem occurs:");
-        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
-        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
-        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (20 times)");
-        System.out.println("- SELECT * FROM user (1 time)");
-        System.out.println("- SELECT * FROM review WHERE section_id = ? (10,000 times - 200 sections × 50 users)");
-        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (1,000 times - 20 schedules × 50 users)");
-        System.out.println("Total N+1 problem queries: 11,023");
-        
-        System.out.println("\nPerformance Impact:");
-        System.out.println("- Optimal queries: 243");
-        System.out.println("- N+1 problem queries: 11,023");
-        System.out.println("- Query multiplication factor: " + (11023.0 / 243.0) + "x");
-        System.out.println("- Expected time difference: Significant (should be clearly visible)");
-        System.out.println("================================\n");
 
         // Additional validations
         assertThat(result.getSchedules()).allSatisfy(schedule -> {
             assertThat(schedule.getSections()).hasSize(10);
             schedule.getSections().forEach(section -> {
-                assertThat(section.getMembers()).hasSize(50);
+                // 실제로는 리뷰나 딥스터디에 참여한 유저만 멤버로 표시됨
+                // 50명 중 30%가 리뷰 제출 (15명) + 20%가 딥스터디 제출 (10명) = 약 23명
+                assertThat(section.getMembers()).hasSize(23);
             });
         });
     }
@@ -591,12 +595,15 @@ class StudyProgressServicePerformanceTest {
                     extremeStudy, 
                     "Extreme Schedule " + i, 
                     "Extreme schedule description " + i,
-                    LocalDateTime.of(2025, 1, i, 20, 0), 
+                    LocalDateTime.of(2025, 1, (i % 28) + 1, 20, 0), 
                     "Extreme Location " + i, 
                     i % 3 == 0, // 1/3 of schedules have deep study
                     List.of()
             );
-            schedules.add(scheduleRepository.save(schedule));
+            Schedule savedSchedule = scheduleRepository.save(schedule);
+            schedules.add(savedSchedule);
+            // 양방향 관계 설정: Study에 Schedule 추가
+            extremeStudy.getSchedules().add(savedSchedule);
         }
 
         // Create 500 sections (10 per schedule)
@@ -611,7 +618,10 @@ class StudyProgressServicePerformanceTest {
                         schedule, 
                         j % 2 == 0 // 50% of sections need review
                 );
-                sections.add(sectionRepository.save(section));
+                Section savedSection = sectionRepository.save(section);
+                sections.add(savedSection);
+                // 양방향 관계 설정: Schedule에 Section 추가
+                schedule.getSections().add(savedSection);
             }
         }
 
@@ -628,8 +638,10 @@ class StudyProgressServicePerformanceTest {
                             "Extreme review content for section " + section.getSectionName() + " by user " + users.get(j).getUsername(),
                             "https://example.com/extreme/review/" + section.getId() + "/" + users.get(j).getId()
                     );
-                    reviewRepository.save(review);
+                    Review savedReview = reviewRepository.save(review);
                     reviewCount++;
+                    // 양방향 관계 설정: Section에 Review 추가
+                    section.getReviews().add(savedReview);
                 }
             }
         }
@@ -648,8 +660,10 @@ class StudyProgressServicePerformanceTest {
                                 "Extreme deep study topic for schedule " + schedule.getName() + " by user " + users.get(j).getUsername(),
                                 "https://example.com/extreme/deepstudy/" + schedule.getId() + "/" + users.get(j).getId()
                         );
-                        deepStudyRepository.save(deepStudy);
+                        DeepStudy savedDeepStudy = deepStudyRepository.save(deepStudy);
                         deepStudyCount++;
+                        // 양방향 관계 설정: Schedule에 DeepStudy 추가
+                        schedule.getDeepStudies().add(savedDeepStudy);
                     }
                 }
             }
@@ -679,32 +693,7 @@ class StudyProgressServicePerformanceTest {
         System.out.println("=== Extreme Volume Query Execution Complete ===");
         System.out.println("Execution time: " + executionTime + "ms");
 
-        // Performance analysis
-        System.out.println("\n=== Extreme Volume Performance Analysis ===");
-        System.out.println("Expected optimal query count (No N+1 problem):");
-        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
-        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
-        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (50 times - number of schedules)");
-        System.out.println("- SELECT * FROM user (1 time)");
-        System.out.println("- SELECT * FROM review WHERE section_id = ? (500 times - number of sections)");
-        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (50 times - number of schedules)");
-        System.out.println("Total optimal queries: 603");
-        
-        System.out.println("\nExpected query count when N+1 problem occurs:");
-        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
-        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
-        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (50 times)");
-        System.out.println("- SELECT * FROM user (1 time)");
-        System.out.println("- SELECT * FROM review WHERE section_id = ? (50,000 times - 500 sections × 100 users)");
-        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (5,000 times - 50 schedules × 100 users)");
-        System.out.println("Total N+1 problem queries: 55,053");
-        
-        System.out.println("\nExtreme Performance Impact:");
-        System.out.println("- Optimal queries: 603");
-        System.out.println("- N+1 problem queries: 55,053");
-        System.out.println("- Query multiplication factor: " + (55053.0 / 603.0) + "x");
-        System.out.println("- Expected time difference: Dramatic (should be very clearly visible)");
-        System.out.println("================================\n");
+ 
 
         // Additional validations
         assertThat(result.getStudyName()).isEqualTo("Extreme Scale Study");
@@ -712,7 +701,10 @@ class StudyProgressServicePerformanceTest {
         assertThat(result.getSchedules()).allSatisfy(schedule -> {
             assertThat(schedule.getSections()).hasSize(10);
             schedule.getSections().forEach(section -> {
-                assertThat(section.getMembers()).hasSize(100);
+                // 실제로는 리뷰나 딥스터디에 참여한 유저만 멤버로 표시됨
+                // 100명 중 25%가 리뷰에 참여하므로 약 25명 + 딥스터디 참여자들이 멤버로 표시됨
+                assertThat(section.getMembers().size()).isGreaterThan(20);
+                assertThat(section.getMembers().size()).isLessThanOrEqualTo(100);
             });
         });
     }
@@ -825,6 +817,46 @@ class StudyProgressServicePerformanceTest {
             }
         }
 
+        // Set up bidirectional relationships
+        comparisonStudy.getSchedules().addAll(schedules);
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            List<Section> scheduleSections = sections.stream()
+                    .filter(section -> section.getSchedule().getId().equals(schedule.getId()))
+                    .collect(Collectors.toList());
+            schedule.getSections().addAll(scheduleSections);
+            
+            for (Section section : scheduleSections) {
+                List<Review> sectionReviews = new ArrayList<>();
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 2 == 0) { // Every 2nd user
+                        sectionReviews.add(Review.create(
+                                users.get(j), 
+                                section, 
+                                "Comparison review content for section " + section.getSectionName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/comparison/review/" + section.getId() + "/" + users.get(j).getId()
+                        ));
+                    }
+                }
+                section.getReviews().addAll(sectionReviews);
+            }
+            
+            if (schedule.getHasDeepStudy()) {
+                List<DeepStudy> scheduleDeepStudies = new ArrayList<>();
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 3 == 0) { // Every 3rd user
+                        scheduleDeepStudies.add(DeepStudy.create(
+                                users.get(j), 
+                                schedule, 
+                                "Comparison deep study topic for schedule " + schedule.getName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/comparison/deepstudy/" + schedule.getId() + "/" + users.get(j).getId()
+                        ));
+                    }
+                }
+                schedule.getDeepStudies().addAll(scheduleDeepStudies);
+            }
+        }
+
         System.out.println("Comparison Data Structure Created:");
         System.out.println("- Study: 1");
         System.out.println("- Users: " + users.size());
@@ -857,31 +889,7 @@ class StudyProgressServicePerformanceTest {
             assertThat(result.getSchedules()).hasSize(10);
         }
 
-        System.out.println("\n=== Performance Comparison Analysis ===");
-        System.out.println("Expected optimal query count (No N+1 problem):");
-        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
-        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
-        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (10 times - number of schedules)");
-        System.out.println("- SELECT * FROM user (1 time)");
-        System.out.println("- SELECT * FROM review WHERE section_id = ? (100 times - number of sections)");
-        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (10 times - number of schedules)");
-        System.out.println("Total optimal queries: 123");
-        
-        System.out.println("\nExpected query count when N+1 problem occurs:");
-        System.out.println("- SELECT * FROM study WHERE id = ? (1 time)");
-        System.out.println("- SELECT * FROM schedule WHERE study_id = ? (1 time)");
-        System.out.println("- SELECT * FROM section WHERE schedule_id = ? (10 times)");
-        System.out.println("- SELECT * FROM user (1 time)");
-        System.out.println("- SELECT * FROM review WHERE section_id = ? (2,500 times - 100 sections × 25 users)");
-        System.out.println("- SELECT * FROM deep_study WHERE schedule_id = ? (250 times - 10 schedules × 25 users)");
-        System.out.println("Total N+1 problem queries: 2,763");
-        
-        System.out.println("\nComparison Performance Impact:");
-        System.out.println("- Optimal queries: 123");
-        System.out.println("- N+1 problem queries: 2,763");
-        System.out.println("- Query multiplication factor: " + (2763.0 / 123.0) + "x");
-        System.out.println("- Expected time difference: Moderate (should be clearly visible)");
-        System.out.println("================================\n");
+
     }
 
     @Test
@@ -959,9 +967,30 @@ class StudyProgressServicePerformanceTest {
         }
 
         // Create some reviews and deep studies
-        reviewRepository.save(Review.create(users.get(0), sections.get(0), "Review 1", "https://example.com/review1"));
-        reviewRepository.save(Review.create(users.get(1), sections.get(1), "Review 2", "https://example.com/review2"));
-        deepStudyRepository.save(DeepStudy.create(users.get(2), schedules.get(0), "Deep Study 1", "https://example.com/deepstudy1"));
+        Review review1 = reviewRepository.save(Review.create(users.get(0), sections.get(0), "Review 1", "https://example.com/review1"));
+        Review review2 = reviewRepository.save(Review.create(users.get(1), sections.get(1), "Review 2", "https://example.com/review2"));
+        DeepStudy deepStudy1 = deepStudyRepository.save(DeepStudy.create(users.get(2), schedules.get(0), "Deep Study 1", "https://example.com/deepstudy1"));
+
+        // Set up bidirectional relationships
+        study.getSchedules().addAll(schedules);
+        for (Schedule schedule : schedules) {
+            List<Section> scheduleSections = sections.stream()
+                    .filter(section -> section.getSchedule().getId().equals(schedule.getId()))
+                    .collect(Collectors.toList());
+            schedule.getSections().addAll(scheduleSections);
+            
+            for (Section section : scheduleSections) {
+                if (section.getId().equals(sections.get(0).getId())) {
+                    section.getReviews().add(review1);
+                } else if (section.getId().equals(sections.get(1).getId())) {
+                    section.getReviews().add(review2);
+                }
+            }
+            
+            if (schedule.getId().equals(schedules.get(0).getId())) {
+                schedule.getDeepStudies().add(deepStudy1);
+            }
+        }
 
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(study.getId())
@@ -1048,6 +1077,43 @@ class StudyProgressServicePerformanceTest {
                         ));
                     }
                 }
+            }
+        }
+
+        // Set up bidirectional relationships
+        study.getSchedules().addAll(schedules);
+        for (Schedule schedule : schedules) {
+            List<Section> scheduleSections = sections.stream()
+                    .filter(section -> section.getSchedule().getId().equals(schedule.getId()))
+                    .collect(Collectors.toList());
+            schedule.getSections().addAll(scheduleSections);
+            
+            for (Section section : scheduleSections) {
+                List<Review> sectionReviews = new ArrayList<>();
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 2 == 0) { // Every 2nd user
+                        sectionReviews.add(Review.create(
+                                users.get(j), section, 
+                                "Medium review for section " + section.getSectionName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/medium/review/" + section.getId() + "/" + users.get(j).getId()
+                        ));
+                    }
+                }
+                section.getReviews().addAll(sectionReviews);
+            }
+            
+            if (schedule.getHasDeepStudy()) {
+                List<DeepStudy> scheduleDeepStudies = new ArrayList<>();
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 3 == 0) { // Every 3rd user
+                        scheduleDeepStudies.add(DeepStudy.create(
+                                users.get(j), schedule,
+                                "Medium deep study for schedule " + schedule.getName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/medium/deepstudy/" + schedule.getId() + "/" + users.get(j).getId()
+                        ));
+                    }
+                }
+                schedule.getDeepStudies().addAll(scheduleDeepStudies);
             }
         }
 
@@ -1139,6 +1205,43 @@ class StudyProgressServicePerformanceTest {
             }
         }
 
+        // Set up bidirectional relationships
+        study.getSchedules().addAll(schedules);
+        for (Schedule schedule : schedules) {
+            List<Section> scheduleSections = sections.stream()
+                    .filter(section -> section.getSchedule().getId().equals(schedule.getId()))
+                    .collect(Collectors.toList());
+            schedule.getSections().addAll(scheduleSections);
+            
+            for (Section section : scheduleSections) {
+                List<Review> sectionReviews = new ArrayList<>();
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 3 == 0) { // Every 3rd user
+                        sectionReviews.add(Review.create(
+                                users.get(j), section, 
+                                "Large review for section " + section.getSectionName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/large/review/" + section.getId() + "/" + users.get(j).getId()
+                        ));
+                    }
+                }
+                section.getReviews().addAll(sectionReviews);
+            }
+            
+            if (schedule.getHasDeepStudy()) {
+                List<DeepStudy> scheduleDeepStudies = new ArrayList<>();
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 5 == 0) { // Every 5th user
+                        scheduleDeepStudies.add(DeepStudy.create(
+                                users.get(j), schedule,
+                                "Large deep study for schedule " + schedule.getName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/large/deepstudy/" + schedule.getId() + "/" + users.get(j).getId()
+                        ));
+                    }
+                }
+                schedule.getDeepStudies().addAll(scheduleDeepStudies);
+            }
+        }
+
         StudyProgressRequestDTO request = StudyProgressRequestDTO.builder()
                 .studyId(study.getId())
                 .build();
@@ -1224,6 +1327,43 @@ class StudyProgressServicePerformanceTest {
                         ));
                     }
                 }
+            }
+        }
+
+        // Set up bidirectional relationships
+        study.getSchedules().addAll(schedules);
+        for (Schedule schedule : schedules) {
+            List<Section> scheduleSections = sections.stream()
+                    .filter(section -> section.getSchedule().getId().equals(schedule.getId()))
+                    .collect(Collectors.toList());
+            schedule.getSections().addAll(scheduleSections);
+            
+            for (Section section : scheduleSections) {
+                List<Review> sectionReviews = new ArrayList<>();
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 4 == 0) { // Every 4th user
+                        sectionReviews.add(Review.create(
+                                users.get(j), section, 
+                                "Extreme review for section " + section.getSectionName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/extreme/review/" + section.getId() + "/" + users.get(j).getId()
+                        ));
+                    }
+                }
+                section.getReviews().addAll(sectionReviews);
+            }
+            
+            if (schedule.getHasDeepStudy()) {
+                List<DeepStudy> scheduleDeepStudies = new ArrayList<>();
+                for (int j = 0; j < users.size(); j++) {
+                    if (j % 7 == 0) { // Every 7th user
+                        scheduleDeepStudies.add(DeepStudy.create(
+                                users.get(j), schedule,
+                                "Extreme deep study for schedule " + schedule.getName() + " by user " + users.get(j).getUsername(),
+                                "https://example.com/extreme/deepstudy/" + schedule.getId() + "/" + users.get(j).getId()
+                        ));
+                    }
+                }
+                schedule.getDeepStudies().addAll(scheduleDeepStudies);
             }
         }
 

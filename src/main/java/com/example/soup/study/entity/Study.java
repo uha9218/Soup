@@ -5,8 +5,11 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -30,6 +33,9 @@ public class Study {
 
 	private LocalDateTime createdAt;  // 생성 시각
 	private LocalDateTime updatedAt;  // 수정 시각
+
+	@OneToMany(mappedBy = "study")
+	private Set<com.example.soup.schedule.entity.Schedule> schedules = new HashSet<>();
 
 	// 생성 팩토리 (startDate, endDate 추가)
 	public static Study create(String name, String description, String type,

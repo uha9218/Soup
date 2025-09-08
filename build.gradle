@@ -45,4 +45,28 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    
+    // 로그를 파일로 자동 저장하는 설정
+    testLogging {
+        showStandardStreams = true
+        exceptionFormat = 'full'
+        events "passed", "skipped", "failed"
+    }
+    
+    // 테스트 완료 후 로그를 파일로 저장
+    afterSuite { desc, result ->
+        if (!desc.parent) { // 최상위 테스트 스위트가 끝나면
+            def output = "build/reports/tests/test-output.log"
+            new File(output).withWriter('UTF-8') { writer ->
+                writer.println("=== Test Execution Log ===")
+                writer.println("Test Results: ${result.resultType}")
+                writer.println("Test Count: ${result.testCount}")
+                writer.println("Success: ${result.successfulTestCount}")
+                writer.println("Failed: ${result.failedTestCount}")
+                writer.println("Skipped: ${result.skippedTestCount}")
+                writer.println("Execution Time: ${result.endTime - result.startTime}ms")
+                writer.println("=========================")
+            }
+        }
+    }
 }

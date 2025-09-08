@@ -7,8 +7,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.example.soup.section.entity.Section;
 import com.example.soup.study.entity.Study;
@@ -46,6 +47,9 @@ public class Schedule {
 
 	@OneToMany(mappedBy = "schedule")
 	private List<Section> sections = new ArrayList<>();
+
+	@OneToMany(mappedBy = "schedule")
+	private Set<com.example.soup.deepstudy.entity.DeepStudy> deepStudies = new HashSet<>();
 
 	public static Schedule create(
 		Study study,

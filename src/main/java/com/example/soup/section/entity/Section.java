@@ -11,9 +11,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -36,6 +40,9 @@ public class Section {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "schedule_id")
 	private Schedule schedule;
+
+	@OneToMany(mappedBy = "section")
+	private Set<com.example.soup.review.entity.Review> reviews = new HashSet<>();
 
 	public static Section create(Long sectionNumber, String sectionName, Study study, Schedule schedule, Boolean needsReview) {
 		Section section = new Section();

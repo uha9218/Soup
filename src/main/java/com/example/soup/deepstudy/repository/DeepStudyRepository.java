@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface DeepStudyRepository extends JpaRepository<DeepStudy, Long> {
     List<DeepStudy> findByScheduleId(Long scheduleId);
+    List<DeepStudy> findByScheduleIdIn(List<Long> scheduleIds);
 }
