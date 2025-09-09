@@ -28,12 +28,45 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     compileOnly 'org.projectlombok:lombok'
-    runtimeOnly 'org.postgresql:postgresql'
+    implementation 'org.postgresql:postgresql'
+    
+    // Spring Boot Actuator
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    
+    // AOP
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+    
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.postgresql:postgresql'
+    testRuntimeOnly 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+    
+    // 로그를 파일로 자동 저장하는 설정
+    testLogging {
+        showStandardStreams = true
+        exceptionFormat = 'full'
+        events "passed", "skipped", "failed"
+    }
+    
+    // 테스트 완료 후 로그를 파일로 저장
+    afterSuite { desc, result ->
+        if (!desc.parent) { // 최상위 테스트 스위트가 끝나면
+            def output = "build/reports/tests/test-output.log"
+            new File(output).withWriter('UTF-8') { writer ->
+                writer.println("=== Test Execution Log ===")
+                writer.println("Test Results: ${result.resultType}")
+                writer.println("Test Count: ${result.testCount}")
+                writer.println("Success: ${result.successfulTestCount}")
+                writer.println("Failed: ${result.failedTestCount}")
+                writer.println("Skipped: ${result.skippedTestCount}")
+                writer.println("Execution Time: ${result.endTime - result.startTime}ms")
+                writer.println("=========================")
+            }
+        }
+    }
 }

@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+
+# p6spy 로깅 설정 (테스트용)
+logging:
+  level:
+    com.p6spy.engine.spy: DEBUG
+    com.example.soup.schedule: DEBUG
+    # 기본적으로 Hibernate SQL 로그는 INFO 레벨로 설정하여 쿼리 출력을 끈다.
+    org.hibernate.SQL: INFO
+    # 파라미터 바인딩 로그도 꺼둔다.
+    org.hibernate.orm.jdbc.bind: INFO
+  # 파일로 로그 저장 (선택사항)
+  file:
+    name: build/reports/tests/application-test.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Spring Boot Actuator 설정 (테스트용)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: httpexchanges,health,metrics,info
+  httpexchanges:
+    recording:
+      enabled: true
+  endpoint:
+    httpexchanges:
+      enabled: true

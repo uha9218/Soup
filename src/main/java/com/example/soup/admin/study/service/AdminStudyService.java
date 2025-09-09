@@ -37,6 +37,7 @@ public class AdminStudyService {
 			saved.getEndDate(),
 			saved.getActualEndDate(),
 			saved.getCompleted(),
+			saved.getIsActive(),
 			saved.getCreatedAt()
 		);
 	}
@@ -52,7 +53,8 @@ public class AdminStudyService {
 			request.getType(),
 			request.getStartDate(),
 			request.getEndDate(),
-			request.getCompleted()
+			request.getCompleted(),
+			request.getIsActive()
 		);
 
 		// actualEndDate setter 필요
@@ -66,6 +68,7 @@ public class AdminStudyService {
 			study.getEndDate(),
 			study.getActualEndDate(),
 			study.getCompleted(),
+			study.getIsActive(),
 			study.getCreatedAt()
 		);
 	}
@@ -82,6 +85,7 @@ public class AdminStudyService {
 				study.getEndDate(),
 				study.getActualEndDate(),
 				study.getCompleted(),
+				study.getIsActive(),
 				study.getCreatedAt()
 			))
 			.toList();
@@ -100,6 +104,7 @@ public class AdminStudyService {
 			study.getEndDate(),
 			study.getActualEndDate(),
 			study.getCompleted(),
+			study.getIsActive(),
 			study.getCreatedAt()
 		);
 	}

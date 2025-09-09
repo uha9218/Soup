@@ -70,6 +70,7 @@ class AdminScheduleServiceUnitTest {
 			request.getDescription(),
 			request.getScheduleDate(),
 			request.getMeetingLocation(),
+			true,
 			List.of(section1, section2)
 		);
 		when(scheduleRepository.save(any(Schedule.class))).thenReturn(dummy);
@@ -98,11 +99,11 @@ class AdminScheduleServiceUnitTest {
 
 		Schedule sch1 = Schedule.create(
 			study, "스터디1 일정", "desc1",
-			LocalDateTime.of(2025, 8, 1, 19, 0), "장소1", List.of(s1_1, s1_2)
+			LocalDateTime.of(2025, 8, 1, 19, 0), "장소1", true, List.of(s1_1, s1_2)
 		);
 		Schedule sch2 = Schedule.create(
 			study, "스터디2 일정", "desc2",
-			LocalDateTime.of(2025, 8, 2, 20, 0), "장소2", List.of(s2_1)
+			LocalDateTime.of(2025, 8, 2, 20, 0), "장소2", false, List.of(s2_1)
 		);
 		when(scheduleRepository.findAll()).thenReturn(List.of(sch1, sch2));
 
@@ -139,7 +140,7 @@ class AdminScheduleServiceUnitTest {
 		Section newSection2 = mock(Section.class); when(newSection2.getId()).thenReturn(3L);
 
 		Schedule schedule = Schedule.create(
-			study, "기존 일정", "old", LocalDateTime.now(), "장소", List.of(oldSection)
+			study, "기존 일정", "old", LocalDateTime.now(), "장소", true, List.of(oldSection)
 		);
 
 		List<Long> newSectionIds = List.of(2L, 3L);
@@ -170,7 +171,7 @@ class AdminScheduleServiceUnitTest {
 		Section section = mock(Section.class); when(section.getId()).thenReturn(1L);
 
 		Schedule schedule = Schedule.create(
-			study, "삭제 일정", "desc", LocalDateTime.now(), "장소", List.of(section)
+			study, "삭제 일정", "desc", LocalDateTime.now(), "장소", true, List.of(section)
 		);
 
 		when(scheduleRepository.findById(1L)).thenReturn(Optional.of(schedule));

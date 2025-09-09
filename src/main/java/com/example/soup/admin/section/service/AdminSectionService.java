@@ -31,7 +31,9 @@ public class AdminSectionService {
 		Section section = Section.create(
 			request.getSectionNumber(),
 			request.getSectionName(),
-			study
+			study,
+			null,
+			true // 기본적으로 회고 필요
 		);
 
 		Section saved = sectionRepository.save(section);
@@ -74,7 +76,7 @@ public class AdminSectionService {
 		Section section = sectionRepository.findById(id)
 			.orElseThrow(() -> new IllegalArgumentException("해당 섹션이 존재하지 않습니다."));
 
-		section.update(request.getSectionNumber(), request.getSectionName());
+		section.update(request.getSectionNumber(), request.getSectionName(), true);
 
 		return AdminSectionResponseDTO.of(
 			section.getSectionNumber(),

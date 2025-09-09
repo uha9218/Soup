@@ -56,6 +56,7 @@ public class AdminStudyRequestDTO {
 		private final LocalDateTime actualEndDate;
 
 		private final Boolean completed;
+		private final Boolean isActive;
 
 		@Builder
 		public Update(
@@ -65,7 +66,8 @@ public class AdminStudyRequestDTO {
 			@JsonProperty("startDate") LocalDateTime startDate,
 			@JsonProperty("endDate") LocalDateTime endDate,
 			@JsonProperty("actualEndDate") LocalDateTime actualEndDate,
-			@JsonProperty("completed") Boolean completed
+			@JsonProperty("completed") Boolean completed,
+			@JsonProperty("isActive") Boolean isActive
 		) {
 			this.name = name;
 			this.description = description;
@@ -74,6 +76,7 @@ public class AdminStudyRequestDTO {
 			this.endDate = endDate;
 			this.actualEndDate = actualEndDate;
 			this.completed = completed;
+			this.isActive = isActive;
 		}
 	}
 }

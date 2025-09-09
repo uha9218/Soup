@@ -7,8 +7,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.example.soup.section.entity.Section;
 import com.example.soup.study.entity.Study;
@@ -36,6 +37,9 @@ public class Schedule {
 	@Column(name = "meeting_location")
 	private String meetingLocation;   // 미팅 장소 혹은 온라인 미팅 링크
 
+	@Column(name = "has_deep_study", nullable = false)
+	private boolean hasDeepStudy;   // 심화학습 포함 여부
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 	@Column(name = "updated_at")
@@ -44,12 +48,16 @@ public class Schedule {
 	@OneToMany(mappedBy = "schedule")
 	private List<Section> sections = new ArrayList<>();
 
+	@OneToMany(mappedBy = "schedule")
+	private Set<com.example.soup.deepstudy.entity.DeepStudy> deepStudies = new HashSet<>();
+
 	public static Schedule create(
 		Study study,
 		String name,
 		String description,
 		LocalDateTime scheduleDate,
 		String meetingLocation,
+		Boolean hasDeepStudy,
 		List<Section> sections
 	) {
 		Schedule schedule = new Schedule();
@@ -58,8 +66,12 @@ public class Schedule {
 		schedule.description = description;
 		schedule.scheduleDate = scheduleDate;
 		schedule.meetingLocation = meetingLocation;
+		schedule.hasDeepStudy = hasDeepStudy != null ? hasDeepStudy : false;
 		schedule.createdAt = LocalDateTime.now();
 		if (sections != null) {
+			for (Section section : sections) {
+				section.setSchedule(schedule);
+			}
 			schedule.sections.addAll(sections);
 		}
 		return schedule;
@@ -69,17 +81,22 @@ public class Schedule {
 		String description,
 		LocalDateTime scheduleDate,
 		String meetingLocation,
+		Boolean hasDeepStudy,
 		List<Section> sections
 	) {
 		this.name = name;
 		this.description = description;
 		this.scheduleDate = scheduleDate;
 		this.meetingLocation = meetingLocation;
+		this.hasDeepStudy = hasDeepStudy != null ? hasDeepStudy : false;
 		this.updatedAt = LocalDateTime.now();
 
 		// 연관 Section 변경 처리
 		if (sections != null) {
 			this.sections.clear();
+			for (Section section : sections) {
+				section.setSchedule(this);
+			}
 			this.sections.addAll(sections);
 		}
 	}

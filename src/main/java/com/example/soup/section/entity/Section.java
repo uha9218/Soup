@@ -1,7 +1,9 @@
 package com.example.soup.section.entity;
 
 import com.example.soup.study.entity.Study;
+import com.example.soup.schedule.entity.Schedule;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -9,9 +11,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -23,20 +29,42 @@ public class Section {
 	private Long id;
 	private Long sectionNumber;
 	private String sectionName;
+	
+	@Column(name = "needs_review", nullable = false)
+	private boolean needsReview;   // 회고 필요 여부
+	
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "study_id")
 	private Study study;
 
-	public static Section create(Long sectionNumber, String sectionName, Study study) {
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "schedule_id")
+	private Schedule schedule;
+
+	@OneToMany(mappedBy = "section")
+	private Set<com.example.soup.review.entity.Review> reviews = new HashSet<>();
+
+	public static Section create(Long sectionNumber, String sectionName, Study study, Schedule schedule, boolean needsReview) {
 		Section section = new Section();
 		section.sectionNumber = sectionNumber;
 		section.sectionName = sectionName;
 		section.study = study;
+		section.schedule = schedule;
+		section.needsReview = needsReview;
 		return section;
 	}
 
-	public void update(Long sectionNumber, String sectionName) {
+	public static Section create(Long sectionNumber, String sectionName, Study study) {
+		return create(sectionNumber, sectionName, study, null, true);
+	}
+
+	public void update(Long sectionNumber, String sectionName, boolean needsReview) {
 		this.sectionNumber = sectionNumber;
 		this.sectionName = sectionName;
+		this.needsReview = needsReview; 
+	}
+
+	public void setSchedule(Schedule schedule) {
+		this.schedule = schedule;
 	}
 }

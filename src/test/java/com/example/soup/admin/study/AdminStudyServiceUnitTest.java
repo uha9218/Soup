@@ -153,6 +153,7 @@ class AdminStudyServiceUnitTest {
 				.endDate(endDate)
 				.actualEndDate(actualEndDate)
 				.completed(true)
+				.isActive(true)
 				.build();
 
 			when(studyRepository.findById(1L)).thenReturn(Optional.of(study));
@@ -179,6 +180,7 @@ class AdminStudyServiceUnitTest {
 				.endDate(LocalDateTime.of(2025, 12, 31, 23, 59))
 				.actualEndDate(LocalDateTime.of(2025, 12, 31, 23, 59))
 				.completed(true)
+				.isActive(true)
 				.build();
 
 			when(studyRepository.findById(1L)).thenReturn(Optional.empty());
