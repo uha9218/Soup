@@ -28,8 +28,8 @@ public class Study {
 	private LocalDateTime endDate;   // 스터디 예상 종료 날짜
 	private LocalDateTime actualEndDate;	//스터디 실제 종료 날짜
 
-	private Boolean completed;  // 스터디 완료 여부
-	private Boolean isActive;   // 현재 진행 중인 스터디 여부
+	private boolean completed;  // 스터디 완료 여부
+	private boolean isActive;   // 현재 진행 중인 스터디 여부
 
 	private LocalDateTime createdAt;  // 생성 시각
 	private LocalDateTime updatedAt;  // 수정 시각
@@ -54,7 +54,7 @@ public class Study {
 
 	// 업데이트 로직 (startDate, endDate, completed 추가)
 	public void update(String name, String description, String type,
-		LocalDateTime startDate, LocalDateTime endDate, Boolean completed, Boolean isActive) {
+		LocalDateTime startDate, LocalDateTime endDate, boolean completed, boolean isActive) {
 		this.name = name;
 		this.description = description;
 		this.type = type;

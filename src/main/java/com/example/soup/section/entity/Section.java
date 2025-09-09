@@ -31,7 +31,7 @@ public class Section {
 	private String sectionName;
 	
 	@Column(name = "needs_review", nullable = false)
-	private Boolean needsReview;   // 회고 필요 여부
+	private boolean needsReview;   // 회고 필요 여부
 	
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "study_id")
@@ -44,13 +44,13 @@ public class Section {
 	@OneToMany(mappedBy = "section")
 	private Set<com.example.soup.review.entity.Review> reviews = new HashSet<>();
 
-	public static Section create(Long sectionNumber, String sectionName, Study study, Schedule schedule, Boolean needsReview) {
+	public static Section create(Long sectionNumber, String sectionName, Study study, Schedule schedule, boolean needsReview) {
 		Section section = new Section();
 		section.sectionNumber = sectionNumber;
 		section.sectionName = sectionName;
 		section.study = study;
 		section.schedule = schedule;
-		section.needsReview = needsReview != null ? needsReview : true;
+		section.needsReview = needsReview;
 		return section;
 	}
 
@@ -58,10 +58,10 @@ public class Section {
 		return create(sectionNumber, sectionName, study, null, true);
 	}
 
-	public void update(Long sectionNumber, String sectionName, Boolean needsReview) {
+	public void update(Long sectionNumber, String sectionName, boolean needsReview) {
 		this.sectionNumber = sectionNumber;
 		this.sectionName = sectionName;
-		this.needsReview = needsReview != null ? needsReview : true;
+		this.needsReview = needsReview; 
 	}
 
 	public void setSchedule(Schedule schedule) {

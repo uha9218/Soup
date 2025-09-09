@@ -38,7 +38,7 @@ public class Schedule {
 	private String meetingLocation;   // 미팅 장소 혹은 온라인 미팅 링크
 
 	@Column(name = "has_deep_study", nullable = false)
-	private Boolean hasDeepStudy;   // 심화학습 포함 여부
+	private boolean hasDeepStudy;   // 심화학습 포함 여부
 
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
